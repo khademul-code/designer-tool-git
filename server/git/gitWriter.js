@@ -278,6 +278,162 @@ async function resetTestBranch(repoPath, branchName = 'main') {
   }
 }
 
+/**
+ * Removes Git commits whose author date falls within the given date range.
+ * 
+ * Strategy: Read all commits oldest→newest, identify commits to REMOVE (within range),
+ * then use git filter-branch --commit-filter to skip those commits by hash.
+ * This rewrites all commit SHAs after the first removed commit (expected for history rewriting).
+ * 
+ * Cross-platform safe: uses child_process.execFile; no shell injection.
+ * 
+ * @param {string} repoPath
+ * @param {string} startDate - "YYYY-MM-DD" inclusive
+ * @param {string} endDate   - "YYYY-MM-DD" inclusive
+ * @returns {Promise<{ removedCount: number, keptCount: number, originalHead: string, newHead: string }>}
+ */
+async function removeCommitsByDateRange(repoPath, startDate, endDate) {
+  // 1. Get all commit hashes with their author ISO dates (oldest first)
+  const { stdout } = await runGit(
+    ['log', '--format=%H%x00%aI', '--reverse'],
+    repoPath
+  );
+
+  if (!stdout || !stdout.trim()) {
+    return { removedCount: 0, keptCount: 0, originalHead: '', newHead: '' };
+  }
+
+  // 2. Build sets of hashes to remove
+  const start = new Date(startDate + 'T00:00:00');
+  const end   = new Date(endDate   + 'T23:59:59');
+
+  const allLines = stdout.split('\n').map(l => l.trim()).filter(Boolean);
+  const hashesToRemove = new Set();
+  let keptCount = 0;
+
+  for (const line of allLines) {
+    const [hash, isoDate] = line.split('\x00');
+    if (!hash || !isoDate) continue;
+    const commitDate = new Date(isoDate);
+    if (commitDate >= start && commitDate <= end) {
+      hashesToRemove.add(hash);
+    } else {
+      keptCount++;
+    }
+  }
+
+  if (hashesToRemove.size === 0) {
+    // Nothing to remove
+    const { stdout: head } = await runGit(['rev-parse', 'HEAD'], repoPath);
+    return { removedCount: 0, keptCount, originalHead: head.trim(), newHead: head.trim() };
+  }
+
+  const { stdout: originalHead } = await runGit(['rev-parse', 'HEAD'], repoPath);
+  const { stdout: currentBranch } = await runGit(['branch', '--show-current'], repoPath);
+  const branchName = currentBranch.trim() || 'main';
+
+  // 3. Create a scratch file with hashes to remove (so we don't need shell eval)
+  //    We will use git filter-branch with --commit-filter that reads a temp env var.
+  //    However, filter-branch needs shell on Windows, which is tricky.
+  //    Instead: cherry-pick approach — build new history on orphan branch.
+
+  const orphanBranch = `__v2_rebuild_${Date.now()}`;
+
+  // 3a. Create orphan branch (no history)
+  await runGit(['checkout', '--orphan', orphanBranch], repoPath);
+  // Clear index
+  await runGit(['rm', '-rf', '--cached', '.'], repoPath).catch(() => {});
+  // Remove working tree files if any (allow-empty repos typically have none)
+  const { execFile } = require('child_process');
+
+  // 3b. Cherry-pick all commits NOT in removal set, in order oldest→newest
+  const keptHashes = allLines
+    .map(l => l.split('\x00')[0])
+    .filter(h => h && !hashesToRemove.has(h));
+
+  let firstCommit = true;
+  for (const hash of keptHashes) {
+    if (firstCommit) {
+      // Cherry-pick the first kept commit as a root commit using cherry-pick with --allow-empty
+      // We need to get the commit details and re-create it
+      const fmt = '%H%x00%an%x00%ae%x00%aI%x00%s';
+      const { stdout: info } = await runGit(['log', '-1', `--format=${fmt}`, hash], repoPath);
+      const parts = info.trim().split('\x00');
+      const [, authorName, authorEmail, authorDate, subject] = parts;
+
+      const env = {
+        GIT_AUTHOR_NAME:     authorName || 'Git User',
+        GIT_AUTHOR_EMAIL:    authorEmail || 'user@example.com',
+        GIT_AUTHOR_DATE:     authorDate,
+        GIT_COMMITTER_NAME:  authorName || 'Git User',
+        GIT_COMMITTER_EMAIL: authorEmail || 'user@example.com',
+        GIT_COMMITTER_DATE:  authorDate
+      };
+
+      await runGitWithEnv(
+        ['commit', '--allow-empty', '-m', subject || 'commit'],
+        repoPath,
+        env
+      );
+      firstCommit = false;
+    } else {
+      // Cherry-pick subsequent commits
+      // Get details for preserving author info and dates
+      const fmt = '%H%x00%an%x00%ae%x00%aI%x00%s';
+      const { stdout: info } = await runGit(['log', '-1', `--format=${fmt}`, hash], repoPath);
+      const parts = info.trim().split('\x00');
+      const [, authorName, authorEmail, authorDate, subject] = parts;
+
+      const env = {
+        GIT_AUTHOR_NAME:     authorName || 'Git User',
+        GIT_AUTHOR_EMAIL:    authorEmail || 'user@example.com',
+        GIT_AUTHOR_DATE:     authorDate,
+        GIT_COMMITTER_NAME:  authorName || 'Git User',
+        GIT_COMMITTER_EMAIL: authorEmail || 'user@example.com',
+        GIT_COMMITTER_DATE:  authorDate
+      };
+
+      await runGitWithEnv(
+        ['cherry-pick', '--allow-empty', '--allow-empty-message', '--no-commit', hash],
+        repoPath,
+        env
+      ).catch(() => {});
+
+      // Commit with original metadata
+      await runGitWithEnv(
+        ['commit', '--allow-empty', '-m', subject || 'commit'],
+        repoPath,
+        env
+      );
+    }
+  }
+
+  // 3c. If no commits were kept, we need at least an empty state
+  // The orphan branch now has the rebuilt history (or is empty)
+
+  // 3d. Force-reset the original branch to orphan branch HEAD
+  let newHead = '';
+  try {
+    const { stdout: orphanHead } = await runGit(['rev-parse', 'HEAD'], repoPath);
+    newHead = orphanHead.trim();
+  } catch {
+    newHead = '';
+  }
+
+  // Switch back to original branch and hard-reset to new history
+  await runGit(['checkout', '-B', branchName, orphanBranch], repoPath);
+
+  // Delete the temp orphan branch
+  await runGit(['branch', '-D', orphanBranch], repoPath).catch(() => {});
+
+  return {
+    removedCount: hashesToRemove.size,
+    keptCount,
+    originalHead: originalHead.trim(),
+    newHead
+  };
+}
+
 module.exports = {
   createSingleCommit,
   createBatchCommits,
@@ -285,5 +441,6 @@ module.exports = {
   pushToRemote,
   getUnpushedCommitCount,
   resetLastCommits,
-  resetTestBranch
+  resetTestBranch,
+  removeCommitsByDateRange
 };

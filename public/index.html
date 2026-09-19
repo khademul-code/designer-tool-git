@@ -1,825 +1,341 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Git Contribution Designer & Git History Lab</title>
-  <!-- Modern Crisp Typography -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Git Contribution Tool</title>
+  <meta name="description" content="A local Git contribution tool for viewing, adding, designing, and removing real Git contributions." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
-  <div class="app-layout">
-    <!-- Sidebar / Navigation -->
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="18" cy="18" r="3"></circle>
-            <circle cx="6" cy="6" r="3"></circle>
-            <path d="M13 6h3a2 2 0 0 1 2 2v7"></path>
-            <line x1="6" y1="9" x2="6" y2="21"></line>
-          </svg>
-        </div>
-        <div class="brand-text">
-          <h2>Git Lab</h2>
-          <span>Contribution Designer</span>
-        </div>
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="6"  cy="6"  r="2.5" fill="var(--accent)"/>
+          <circle cx="18" cy="6"  r="2.5" fill="var(--accent)"/>
+          <circle cx="6"  cy="18" r="2.5" fill="var(--accent)"/>
+          <circle cx="18" cy="18" r="2.5" fill="var(--muted)"/>
+          <line x1="6" y1="8.5" x2="6" y2="15.5" stroke="var(--accent)" stroke-width="2"/>
+          <line x1="8.5" y1="6" x2="15.5" y2="6" stroke="var(--accent)" stroke-width="2"/>
+          <line x1="7.8" y1="7.8" x2="16.2" y2="16.2" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="2 2"/>
+        </svg>
+        <span>Git Contribution Tool</span>
       </div>
-
-      <!-- Quick status indicator in sidebar -->
-      <div class="repo-badge-card" id="sidebarRepoBadge">
-        <div class="badge-status-dot" id="sidebarDot"></div>
-        <div class="badge-repo-info">
-          <span class="badge-title">Target Repo</span>
-          <span class="badge-name" id="sidebarRepoName">Not configured</span>
-        </div>
-      </div>
-
-      <!-- Navigation Tabs -->
-      <nav class="nav-menu">
-        <button class="nav-item active" data-tab="dashboard">
-          <span class="nav-icon">📊</span>
-          <span class="nav-label">Dashboard</span>
-        </button>
-        <button class="nav-item" data-tab="calendar">
-          <span class="nav-icon">📅</span>
-          <span class="nav-label">Contribution Calendar</span>
-        </button>
-        <button class="nav-item" data-tab="history">
-          <span class="nav-icon">📜</span>
-          <span class="nav-label">Git History</span>
-        </button>
-        <button class="nav-item" data-tab="commitLab">
-          <span class="nav-icon">🧪</span>
-          <span class="nav-label">Commit Lab</span>
-        </button>
-        <button class="nav-item" data-tab="designer">
-          <span class="nav-icon">🎨</span>
-          <span class="nav-label">Contribution Designer</span>
-        </button>
-        <button class="nav-item" data-tab="plans">
-          <span class="nav-icon">📋</span>
-          <span class="nav-label">Plans</span>
-        </button>
-        <button class="nav-item" data-tab="remote">
-          <span class="nav-icon">🚀</span>
-          <span class="nav-label">Remote & Sync</span>
-        </button>
-        <button class="nav-item" data-tab="historyManager">
-          <span class="nav-icon">🛠️</span>
-          <span class="nav-label">History Lab</span>
-        </button>
-        <button class="nav-item" data-tab="settings">
-          <span class="nav-icon">⚙️</span>
-          <span class="nav-label">Settings</span>
-        </button>
-      </nav>
-
-      <!-- Host Git Info in Footer -->
-      <div class="sidebar-footer">
-        <div class="git-cli-status" id="gitCliStatus">
-          <span class="status-indicator"></span>
-          <span class="status-text" id="gitCliText">Checking Git CLI...</span>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Main Content Area -->
-    <main class="main-content">
-      <!-- Top header bar -->
-      <header class="top-header">
-        <div class="header-title">
-          <h1 id="pageTitle">Dashboard</h1>
-          <p id="pageSubtitle">Real-time status of your selected target Git repository</p>
-        </div>
-        <div class="header-actions">
-          <button class="btn btn-secondary" id="btnRefreshStatus">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-            Refresh Git
-          </button>
-          <button class="btn btn-primary" id="btnNavQuickAction">
-            <span id="btnNavQuickActionIcon">🎨</span>
-            <span id="btnNavQuickActionText">Open Designer</span>
-          </button>
-        </div>
-      </header>
-
-      <!-- TAB 1: DASHBOARD -->
-      <section class="tab-content active" id="tabDashboard">
-        <div class="concept-banner">
-          <div class="concept-icon">💡</div>
-          <div class="concept-body">
-            <h3>How GitHub Contribution Calculation Works</h3>
-            <p>
-              This application creates <strong>real Git commits</strong> with designated author dates in your local test repository.
-              When pushed to GitHub, GitHub inspects the actual Git commit timestamps and calculates its contribution graph independently.
-            </p>
-          </div>
-        </div>
-
-        <div class="alert alert-warning" id="dashboardWarning" style="display: none;">
-          <div class="alert-icon">⚠️</div>
-          <div class="alert-content">
-            <h4 id="warningTitle">Target Repository Not Configured</h4>
-            <p id="warningMessage">Please configure a valid local Git repository path in Settings to start inspecting history and designing contribution patterns.</p>
-          </div>
-          <button class="btn btn-sm btn-outline" id="btnFixSettings">Configure Path</button>
-        </div>
-
-        <!-- Status Cards Grid -->
-        <div class="cards-grid">
-          <div class="card">
-            <div class="card-header">
-              <span class="card-tag">Repository</span>
-              <span class="status-pill" id="cardRepoStatus">Checking...</span>
-            </div>
-            <div class="card-body">
-              <h3 class="card-value" id="cardRepoName">--</h3>
-              <p class="card-subtext font-mono" id="cardRepoPath">No path configured</p>
-            </div>
-            <div class="card-footer">
-              <span class="card-hint">Managed via <code>data/settings.json</code></span>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <span class="card-tag">Branch & Remote</span>
-              <span class="status-pill" id="cardRemoteStatus">No Remote</span>
-            </div>
-            <div class="card-body">
-              <div class="data-row">
-                <span class="data-label">Active Branch:</span>
-                <span class="data-value font-mono" id="cardBranch">--</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">Remote URL:</span>
-                <span class="data-value font-mono text-truncate" id="cardRemoteUrl">None</span>
-              </div>
-            </div>
-            <div class="card-footer">
-              <span class="card-hint">Git Commands: <code>git branch</code> & <code>git remote -v</code></span>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <span class="card-tag">Working Tree</span>
-              <span class="status-pill" id="cardTreeStatus">Clean</span>
-            </div>
-            <div class="card-body">
-              <div class="stat-counts">
-                <div class="stat-box">
-                  <span class="stat-number" id="cardModifiedCount">0</span>
-                  <span class="stat-name">Modified</span>
-                </div>
-                <div class="stat-box">
-                  <span class="stat-number" id="cardUntrackedCount">0</span>
-                  <span class="stat-name">Untracked</span>
-                </div>
-              </div>
-            </div>
-            <div class="card-footer">
-              <span class="card-hint">Git Command: <code>git status --short</code></span>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <span class="card-tag">Git History</span>
-              <span class="status-pill pill-neutral" id="cardCommitBadge">0 Commits</span>
-            </div>
-            <div class="card-body">
-              <div class="data-row">
-                <span class="data-label">Total Commits:</span>
-                <span class="data-value font-bold" id="cardTotalCommits">0</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">Unpushed:</span>
-                <span class="data-value font-mono" id="cardUnpushedCount">0</span>
-              </div>
-              <p class="last-commit-msg" id="cardLastCommitMsg">No commits in repository yet.</p>
-            </div>
-            <div class="card-footer">
-              <span class="card-hint">Git Command: <code>git rev-list --count HEAD</code></span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Quick Action Toolbar -->
-        <div class="action-toolbar">
-          <h3>Quick Navigation</h3>
-          <div class="button-group">
-            <button class="btn btn-secondary" onclick="App.switchTab('calendar')">📅 Contribution Calendar</button>
-            <button class="btn btn-secondary" onclick="App.switchTab('history')">📜 View Git History</button>
-            <button class="btn btn-secondary" onclick="App.switchTab('commitLab')">🧪 Commit Lab</button>
-            <button class="btn btn-secondary" onclick="App.switchTab('designer')">🎨 Contribution Designer</button>
-            <button class="btn btn-secondary" onclick="App.switchTab('plans')">📋 Commit Plans</button>
-            <button class="btn btn-secondary" onclick="App.switchTab('remote')">🚀 Remote & Sync</button>
-            <button class="btn btn-secondary" onclick="App.switchTab('historyManager')">🛠️ History Lab</button>
-          </div>
-        </div>
-
-        <!-- Diagnostics & Raw Git Status Panel -->
-        <div class="details-panel" id="gitStatusDetails">
-          <div class="panel-header">
-            <h3>Live Git Status Output (<code>git status --short</code>)</h3>
-          </div>
-          <pre class="code-block font-mono" id="rawGitStatus">No repository selected or working tree is clean.</pre>
-        </div>
-      </section>
-
-      <!-- TAB 2: CONTRIBUTION CALENDAR -->
-      <section class="tab-content" id="tabCalendar">
-        <div class="section-toolbar">
-          <div class="toolbar-left">
-            <div class="stat-chip">
-              <span class="chip-label">Total Real Commits</span>
-              <span class="chip-value" id="calTotalContributions">0</span>
-            </div>
-            <div class="stat-chip">
-              <span class="chip-label">Active Days</span>
-              <span class="chip-value" id="calActiveDays">0</span>
-            </div>
-            <div class="stat-chip">
-              <span class="chip-label">Peak Day</span>
-              <span class="chip-value" id="calMaxDayCount">0 commits</span>
-            </div>
-          </div>
-          <div class="toolbar-right">
-            <label for="calYearSelect" class="toolbar-label">Year:</label>
-            <select id="calYearSelect" class="form-select"></select>
-            <button class="btn btn-secondary btn-sm" id="btnRefreshCalendar">🔄 Reload</button>
-          </div>
-        </div>
-
-        <!-- GitHub Style Calendar Wrapper -->
-        <div class="calendar-card">
-          <div class="calendar-header-title">
-            <h3>Git Contribution Graph (Derived from Real Git History)</h3>
-            <span class="calendar-subtitle">Click any cell to view the exact Git commits recorded on that date.</span>
-          </div>
-
-          <div class="calendar-outer-container">
-            <div class="calendar-month-headers" id="calMonthHeaders"></div>
-            <div class="calendar-grid-wrapper">
-              <div class="calendar-weekday-labels">
-                <span>Sun</span>
-                <span>Mon</span>
-                <span>Tue</span>
-                <span>Wed</span>
-                <span>Thu</span>
-                <span>Fri</span>
-                <span>Sat</span>
-              </div>
-              <div class="calendar-matrix" id="calMatrix">
-                <div class="loading-placeholder">Loading real Git contributions...</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="calendar-legend-bar">
-            <span class="legend-text">Less</span>
-            <div class="legend-cells">
-              <span class="cal-cell level-0" title="0 commits"></span>
-              <span class="cal-cell level-1" title="1 commit"></span>
-              <span class="cal-cell level-2" title="2-3 commits"></span>
-              <span class="cal-cell level-3" title="4-6 commits"></span>
-              <span class="cal-cell level-4" title="7+ commits"></span>
-            </div>
-            <span class="legend-text">More</span>
-          </div>
-        </div>
-
-        <!-- Selected Date Inspector Panel -->
-        <div class="card date-inspector-card" id="calDateInspector" style="display: none;">
-          <div class="card-header">
-            <span class="card-tag">Date Inspector</span>
-            <span class="status-pill pill-success" id="inspectorCommitCount">0 Commits</span>
-          </div>
-          <div class="card-body">
-            <h3 id="inspectorDateTitle">YYYY-MM-DD</h3>
-            <div id="inspectorCommitsList" class="inspector-commits-list"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 3: GIT HISTORY -->
-      <section class="tab-content" id="tabHistory">
-        <!-- History Filter Bar -->
-        <div class="filter-panel">
-          <div class="filter-row">
-            <div class="filter-group flex-2">
-              <label for="historySearch">Search Commit Message</label>
-              <input type="text" id="historySearch" placeholder="e.g. pattern, feat, update...">
-            </div>
-            <div class="filter-group flex-1">
-              <label for="historyAuthor">Author</label>
-              <input type="text" id="historyAuthor" placeholder="Filter by author name/email">
-            </div>
-            <div class="filter-group">
-              <label for="historyStartDate">Start Date</label>
-              <input type="date" id="historyStartDate">
-            </div>
-            <div class="filter-group">
-              <label for="historyEndDate">End Date</label>
-              <input type="date" id="historyEndDate">
-            </div>
-            <div class="filter-actions">
-              <button class="btn btn-primary btn-sm" id="btnFilterHistory">Apply Filter</button>
-              <button class="btn btn-secondary btn-sm" id="btnResetHistoryFilter">Reset</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- History Results & Daily Summary Table -->
-        <div class="history-layout">
-          <div class="history-commits-container">
-            <div class="table-header-info">
-              <h3>Commit Log (Reverse Chronological)</h3>
-              <span id="historyMatchCount" class="badge-count">0 commits</span>
-            </div>
-            <div class="commits-timeline" id="historyTimeline">
-              <div class="empty-state">No commits found matching criteria.</div>
-            </div>
-          </div>
-
-          <div class="history-summary-sidebar">
-            <div class="card">
-              <div class="card-header">
-                <span class="card-tag">Daily Summary</span>
-              </div>
-              <div class="card-body p-0">
-                <div class="daily-table-wrapper">
-                  <table class="daily-summary-table" id="dailySummaryTable">
-                    <thead>
-                      <tr>
-                        <th>Date</th>
-                        <th>Commits</th>
-                      </tr>
-                    </thead>
-                    <tbody id="dailySummaryTableBody">
-                      <tr><td colspan="2" class="text-muted">No data</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 4: COMMIT LAB -->
-      <section class="tab-content" id="tabCommitLab">
-        <div class="concept-banner">
-          <div class="concept-icon">🧪</div>
-          <div class="concept-body">
-            <h3>Commit Lab: Hands-On Git Internals</h3>
-            <p>
-              Experiment with explicit timestamps using Git environment overrides (<code>GIT_AUTHOR_DATE</code> and <code>GIT_COMMITTER_DATE</code>) 
-              and <code>git commit --allow-empty</code>. Every commit generated here actually exists in your local Git repository!
-            </p>
-          </div>
-        </div>
-
-        <div class="lab-grid">
-          <!-- Commit Lab Form -->
-          <div class="card">
-            <div class="card-header">
-              <h2>Create Learning Commits</h2>
-            </div>
-            <form id="formCommitLab" class="settings-form">
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="labDate">Target Date <span class="required">*</span></label>
-                  <input type="date" id="labDate" required>
-                </div>
-                <div class="form-group">
-                  <label for="labTime">Target Time</label>
-                  <input type="time" id="labTime" value="14:30">
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="labCount">Number of Commits (1 - 100) <span class="required">*</span></label>
-                  <input type="number" id="labCount" min="1" max="100" value="3" required>
-                </div>
-                <div class="form-group">
-                  <label for="labAuthorName">Author Name</label>
-                  <input type="text" id="labAuthorName" placeholder="Git Learner">
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="labAuthorEmail">Author Email</label>
-                  <input type="email" id="labAuthorEmail" placeholder="learner@example.com">
-                </div>
-                <div class="form-group">
-                  <label for="labMessage">Commit Message</label>
-                  <input type="text" id="labMessage" placeholder="Git learning test" value="Git learning test">
-                </div>
-              </div>
-
-              <div class="form-actions">
-                <button type="button" class="btn btn-secondary" id="btnPreviewLabCommit">
-                  🔍 Preview Commits
-                </button>
-                <button type="submit" class="btn btn-primary" id="btnCreateLabCommit">
-                  🚀 Create Real Git Commits
-                </button>
-              </div>
-            </form>
-          </div>
-
-          <!-- Preview & Result Output -->
-          <div class="card" id="labResultCard">
-            <div class="card-header">
-              <h3>Execution Preview & Diagnostics</h3>
-            </div>
-            <div class="card-body">
-              <div id="labPreviewBox" class="lab-preview-box">
-                <p class="text-muted">Fill the form and click "Preview Commits" or "Create Real Git Commits".</p>
-              </div>
-              <div id="labCreatedList" class="created-commits-box" style="display: none;">
-                <h4>Created Git Commits:</h4>
-                <div class="created-hashes-list font-mono" id="labHashesList"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 5: CONTRIBUTION DESIGNER -->
-      <section class="tab-content" id="tabDesigner">
-        <div class="designer-layout">
-          <!-- Toolbar & Palette -->
-          <div class="designer-toolbar-card">
-            <div class="designer-meta-row">
-              <div class="form-group flex-2">
-                <label for="designerNameInput">Design Name</label>
-                <input type="text" id="designerNameInput" value="My Pattern" placeholder="e.g. Heart, Star">
-              </div>
-              <div class="form-group flex-1">
-                <label for="designerStartDate">Pattern Start Date</label>
-                <input type="date" id="designerStartDate">
-              </div>
-              <div class="form-group">
-                <label for="designerPresets">Presets</label>
-                <select id="designerPresets" class="form-select">
-                  <option value="">Choose Preset...</option>
-                  <option value="preset-heart">Heart Pattern</option>
-                  <option value="preset-smile">Smiley Face</option>
-                  <option value="preset-hi">HI! Letters</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Tool Palette -->
-            <div class="palette-row">
-              <div class="tool-group">
-                <span class="tool-group-label">Tools:</span>
-                <button class="tool-btn active" id="toolPen" title="Pen (Paint Intensity)">✏️ Pen</button>
-                <button class="tool-btn" id="toolEraser" title="Eraser (Set to 0)">🧹 Eraser</button>
-                <button class="tool-btn" id="toolFill" title="Fill Grid">🪣 Fill All</button>
-                <button class="tool-btn" id="toolClear" title="Clear Grid">🗑️ Clear</button>
-              </div>
-
-              <div class="tool-group">
-                <span class="tool-group-label">Intensity / Commits:</span>
-                <div class="intensity-picker">
-                  <button class="intensity-btn active level-1" data-intensity="1" title="1 Commit">1</button>
-                  <button class="intensity-btn level-2" data-intensity="2" title="2 Commits">2</button>
-                  <button class="intensity-btn level-3" data-intensity="4" title="4 Commits">4</button>
-                  <button class="intensity-btn level-4" data-intensity="7" title="7 Commits">7</button>
-                </div>
-              </div>
-
-              <div class="tool-group">
-                <button class="btn btn-secondary btn-sm" id="btnDesignerUndo" title="Undo">↩️ Undo</button>
-                <button class="btn btn-secondary btn-sm" id="btnDesignerRedo" title="Redo">↪️ Redo</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Pixel Drawing Grid Canvas -->
-          <div class="designer-canvas-card">
-            <div class="canvas-header">
-              <span class="canvas-info">Click or drag across cells to draw. Each cell represents a real commit count.</span>
-              <div class="canvas-stats">
-                <span>Active Days: <strong id="designActiveDays">0</strong></span>
-                <span>Total Commits: <strong id="designTotalCommits">0</strong></span>
-              </div>
-            </div>
-
-            <div class="designer-grid-container">
-              <div class="designer-weekday-labels">
-                <span>Sun</span>
-                <span>Mon</span>
-                <span>Tue</span>
-                <span>Wed</span>
-                <span>Thu</span>
-                <span>Fri</span>
-                <span>Sat</span>
-              </div>
-              <div class="designer-grid" id="designerPixelGrid"></div>
-            </div>
-
-            <!-- Designer Actions -->
-            <div class="designer-actions-bar">
-              <div class="action-left">
-                <button class="btn btn-secondary" id="btnSaveDesign">💾 Save Design</button>
-                <button class="btn btn-secondary" id="btnLoadDesignsModal">📂 Saved Designs</button>
-              </div>
-              <div class="action-right">
-                <button class="btn btn-secondary" id="btnPreviewSchedule">📅 Preview Schedule</button>
-                <button class="btn btn-primary" id="btnApplyDesignLocally">🚀 Apply Locally to Git</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 6: PLANS -->
-      <section class="tab-content" id="tabPlans">
-        <div class="concept-banner">
-          <div class="concept-icon">📋</div>
-          <div class="concept-body">
-            <h3>Plans vs Actual Git History</h3>
-            <p>
-              A <strong>Commit Plan</strong> is what you intended to create. It is stored safely in <code>data/plans.json</code>.
-              It does NOT become part of your Git history until you click <strong>"Apply Plan Locally"</strong> to create the real commits.
-            </p>
-          </div>
-        </div>
-
-        <div class="plans-header-bar">
-          <h3>Saved Commit Plans</h3>
-          <button class="btn btn-secondary" id="btnRefreshPlans">🔄 Refresh Plans</button>
-        </div>
-
-        <div class="plans-list" id="plansListContainer">
-          <div class="empty-state">No commit plans created yet. Use the Contribution Designer or Commit Lab to generate plans.</div>
-        </div>
-      </section>
-
-      <!-- TAB 7: REMOTE & SYNC -->
-      <section class="tab-content" id="tabRemote">
-        <div class="remote-grid">
-          <div class="card">
-            <div class="card-header">
-              <h2>Remote Repository Status</h2>
-              <span class="status-pill" id="remoteStatusBadge">Checking...</span>
-            </div>
-            <div class="card-body">
-              <div class="data-row">
-                <span class="data-label">Remote Name:</span>
-                <span class="data-value font-mono" id="remoteDetailName">origin</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">Remote URL:</span>
-                <span class="data-value font-mono text-truncate" id="remoteDetailUrl">None</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">Current Branch:</span>
-                <span class="data-value font-mono" id="remoteDetailBranch">main</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">Unpushed Commits:</span>
-                <span class="data-value font-bold" id="remoteUnpushedCount">0</span>
-              </div>
-            </div>
-            <div class="card-footer">
-              <div class="button-group">
-                <button class="btn btn-secondary" id="btnGitPull">📥 Pull from Remote</button>
-                <button class="btn btn-primary" id="btnGitPush">🚀 Push to GitHub Remote</button>
-                <button class="btn btn-danger btn-sm" id="btnGitForcePush">⚠️ Force Push</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <h3>Remote Synchronization Principles</h3>
-            </div>
-            <div class="card-body">
-              <div class="guide-steps">
-                <div class="step-item">
-                  <span class="step-num">1</span>
-                  <div class="step-content">
-                    <h4>Local Commit Creation</h4>
-                    <p>Commits are created offline in your local repository first.</p>
-                  </div>
-                </div>
-                <div class="step-item">
-                  <span class="step-num">2</span>
-                  <div class="step-content">
-                    <h4>Explicit Push Action</h4>
-                    <p>The application <strong>never pushes automatically</strong>. You must explicitly review and confirm.</p>
-                  </div>
-                </div>
-                <div class="step-item">
-                  <span class="step-num">3</span>
-                  <div class="step-content">
-                    <h4>GitHub Contribution Rules</h4>
-                    <p>GitHub receives your real Git history and calculates its graph according to commit email and default branch rules.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="details-panel" id="remoteOutputPanel" style="margin-top: 1.5rem;">
-          <div class="panel-header">
-            <h3>Remote Command Output</h3>
-          </div>
-          <pre class="code-block font-mono" id="remoteCommandOutput">No remote operations executed yet.</pre>
-        </div>
-      </section>
-
-      <!-- TAB 8: HISTORY LAB & CONTROLLED MANAGEMENT -->
-      <section class="tab-content" id="tabHistoryManager">
-        <div class="concept-banner alert-warning-theme">
-          <div class="concept-icon">🛠️</div>
-          <div class="concept-body">
-            <h3>Controlled History Management</h3>
-            <p>
-              For learning and testing on your disposable test repository.
-              These operations modify your local branch pointer. Every action requires explicit confirmation.
-            </p>
-          </div>
-        </div>
-
-        <div class="history-tools-grid">
-          <!-- Reset Last Commit -->
-          <div class="card">
-            <div class="card-header">
-              <h3>Undo Latest Commit</h3>
-            </div>
-            <div class="card-body">
-              <p class="text-muted mb-3">Removes the most recent commit on the active branch (<code>git reset --hard HEAD~1</code>).</p>
-              <button class="btn btn-warning" id="btnResetOneCommit">Undo Last 1 Commit</button>
-            </div>
-          </div>
-
-          <!-- Reset Last N Commits -->
-          <div class="card">
-            <div class="card-header">
-              <h3>Reset Last N Commits</h3>
-            </div>
-            <div class="card-body">
-              <div class="form-group mb-3">
-                <label for="resetCountInput">Number of Commits to Remove</label>
-                <input type="number" id="resetCountInput" min="1" max="100" value="3">
-              </div>
-              <button class="btn btn-warning" id="btnResetNCommits">Reset Selected Commits</button>
-            </div>
-          </div>
-
-          <!-- Reset Disposable Test Branch -->
-          <div class="card">
-            <div class="card-header">
-              <h3>Reset Test Branch</h3>
-            </div>
-            <div class="card-body">
-              <p class="text-muted mb-3">Resets the test branch to a fresh, clean empty state for a new experiment.</p>
-              <button class="btn btn-danger" id="btnResetTestBranch">Reset Branch Completely</button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 9: SETTINGS -->
-      <section class="tab-content" id="tabSettings">
-        <div class="settings-grid">
-          <div class="settings-card">
-            <div class="card-header">
-              <h2>Target Repository Configuration</h2>
-              <p>Configure the local path to your separate test repository.</p>
-            </div>
-            
-            <form id="formSettings" class="settings-form">
-              <div class="form-group">
-                <label for="inputRepoPath">Target Repository Absolute Path <span class="required">*</span></label>
-                <div class="input-with-button">
-                  <input type="text" id="inputRepoPath" placeholder="e.g. C:\GitLabs\contribution-test-repo" required autocomplete="off">
-                  <button type="button" class="btn btn-secondary" id="btnValidateOnly">Test Path</button>
-                </div>
-                <small class="form-help">Must be an existing local folder initialized with <code>git init</code>.</small>
-              </div>
-
-              <div id="validationResultAlert" class="validation-alert" style="display: none;"></div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="inputDefaultBranch">Default Branch</label>
-                  <input type="text" id="inputDefaultBranch" placeholder="main" value="main">
-                </div>
-                <div class="form-group">
-                  <label for="inputRemoteName">Remote Name</label>
-                  <input type="text" id="inputRemoteName" placeholder="origin" value="origin">
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="inputAuthorName">Default Author Name</label>
-                  <input type="text" id="inputAuthorName" placeholder="Git Learner" value="Git Learner">
-                </div>
-                <div class="form-group">
-                  <label for="inputAuthorEmail">Default Author Email</label>
-                  <input type="email" id="inputAuthorEmail" placeholder="learner@example.com" value="learner@example.com">
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label for="inputDefaultCommitMsg">Default Commit Message</label>
-                <input type="text" id="inputDefaultCommitMsg" placeholder="Git learning commit" value="Git learning commit">
-              </div>
-
-              <div class="form-actions">
-                <button type="submit" class="btn btn-primary" id="btnSaveSettings">
-                  💾 Save & Apply Settings
-                </button>
-                <button type="button" class="btn btn-secondary" id="btnCancelSettings">
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-
-          <div class="guide-card">
-            <div class="card-header">
-              <h3>How to Create a Disposable Test Repository</h3>
-              <p>Use PowerShell, CMD, or Bash on your computer to create a fresh test repository.</p>
-            </div>
-            
-            <div class="guide-steps">
-              <div class="step-item">
-                <span class="step-num">1</span>
-                <div class="step-content">
-                  <h4>Create a test directory</h4>
-                  <pre class="code-copy font-mono">mkdir C:\GitLabs\contribution-test-repo</pre>
-                </div>
-              </div>
-
-              <div class="step-item">
-                <span class="step-num">2</span>
-                <div class="step-content">
-                  <h4>Enter directory & initialize Git</h4>
-                  <pre class="code-copy font-mono">cd C:\GitLabs\contribution-test-repo
-git init</pre>
-                </div>
-              </div>
-
-              <div class="step-item">
-                <span class="step-num">3</span>
-                <div class="step-content">
-                  <h4>Copy path into the setting above</h4>
-                  <p>Paste <code>C:\GitLabs\contribution-test-repo</code> into the path field and click <strong>"Test Path"</strong>.</p>
-                </div>
-              </div>
-            </div>
-
-            <div class="safety-note">
-              <strong>🔒 Safety Guarantee:</strong>
-              <p>This application will never perform destructive Git actions silently. It never pushes commits automatically.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-  </div>
-
-  <!-- Global Modal Container for Confirmations, Previews, and Saved Designs -->
-  <div id="modalBackdrop" class="modal-backdrop" style="display: none;">
-    <div class="modal-dialog" id="modalDialog">
-      <div class="modal-header">
-        <h3 id="modalTitle">Confirmation</h3>
-        <button class="modal-close-btn" id="modalCloseBtn">&times;</button>
-      </div>
-      <div class="modal-body" id="modalBody"></div>
-      <div class="modal-footer" id="modalFooter"></div>
     </div>
+
+    <!-- Repository section -->
+    <div class="sidebar-section">
+      <div class="section-label">Repository</div>
+      <div class="repo-path-display" id="repo-path-display" title="No repository selected">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span id="repo-path-text">Not connected</span>
+      </div>
+      <input type="text" id="repo-path-input" class="repo-input" placeholder="Enter repository path…" spellcheck="false" />
+      <button id="btn-connect-repo" class="btn btn-primary btn-sm">Connect Repository</button>
+      <div id="repo-status-badge" class="status-badge"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="sidebar-nav" role="navigation" aria-label="Main navigation">
+      <button class="nav-btn active" id="nav-contribution" data-tab="contribution">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Contribution
+      </button>
+      <button class="nav-btn" id="nav-random" data-tab="random">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+        Random Contributions
+      </button>
+      <button class="nav-btn" id="nav-art" data-tab="art">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/><circle cx="8.5" cy="14" r="1.5" fill="currentColor"/><circle cx="15.5" cy="10" r="1.5" fill="currentColor"/><circle cx="8.5" cy="10" r="1.5" fill="currentColor"/></svg>
+        Contribution Art
+      </button>
+      <button class="nav-btn" id="nav-remove" data-tab="remove">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        Remove Contributions
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="git-info" id="git-status-info">
+        <span id="git-branch-display">—</span>
+        <span class="git-info-sep">·</span>
+        <span id="git-commits-display">0 commits</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN CONTENT ===================== -->
+  <main id="main-content">
+
+    <!-- ---- TAB 1: CONTRIBUTION CALENDAR ---- -->
+    <section id="tab-contribution" class="tab-section active" aria-label="Contribution Calendar">
+      <div class="tab-header">
+        <h1>Contribution Calendar</h1>
+        <div class="tab-header-actions">
+          <label for="cal-year-select" class="sr-only">Year</label>
+          <select id="cal-year-select" class="select-control">
+            <!-- populated by JS -->
+          </select>
+          <button id="btn-refresh-calendar" class="btn btn-ghost btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.11"/></svg>
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <!-- Repo info strip -->
+      <div id="repo-info-strip" class="info-strip hidden">
+        <div class="info-chip" id="chip-branch">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+          <span id="chip-branch-text">—</span>
+        </div>
+        <div class="info-chip" id="chip-status">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          <span id="chip-status-text">—</span>
+        </div>
+        <div class="info-chip">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span id="chip-total-commits">0 total commits</span>
+        </div>
+      </div>
+
+      <!-- Calendar container -->
+      <div id="calendar-container" class="calendar-section">
+        <div class="calendar-empty-state" id="calendar-empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <p>Connect a Git repository to view the contribution calendar.</p>
+        </div>
+        <div id="calendar-content" class="hidden">
+          <div class="calendar-stats" id="calendar-stats">
+            <span id="stat-total"></span>
+            <span id="stat-active"></span>
+            <span id="stat-max"></span>
+          </div>
+          <div class="calendar-scroll-wrapper">
+            <div class="calendar-grid-wrap">
+              <div class="calendar-weekdays" id="calendar-weekdays"></div>
+              <div class="calendar-months-row" id="calendar-months-row"></div>
+              <div class="calendar-grid" id="calendar-grid"></div>
+            </div>
+          </div>
+          <div class="calendar-legend">
+            <span class="legend-label">Less</span>
+            <span class="legend-cell l0" title="0 commits"></span>
+            <span class="legend-cell l1" title="1 commit"></span>
+            <span class="legend-cell l2" title="2–3 commits"></span>
+            <span class="legend-cell l3" title="4–6 commits"></span>
+            <span class="legend-cell l4" title="7+ commits"></span>
+            <span class="legend-label">More</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tooltip -->
+      <div id="cal-tooltip" class="cal-tooltip hidden" role="tooltip"></div>
+    </section>
+
+    <!-- ---- TAB 2: RANDOM CONTRIBUTIONS ---- -->
+    <section id="tab-random" class="tab-section" aria-label="Random Contributions">
+      <div class="tab-header">
+        <h1>Random Contributions</h1>
+      </div>
+
+      <div class="form-card">
+        <div class="form-row two-col">
+          <div class="form-group">
+            <label for="rand-start-date">Start Date</label>
+            <input type="date" id="rand-start-date" class="input-control" />
+          </div>
+          <div class="form-group">
+            <label for="rand-end-date">End Date</label>
+            <input type="date" id="rand-end-date" class="input-control" />
+          </div>
+        </div>
+        <div class="form-row two-col">
+          <div class="form-group">
+            <label for="rand-min">Min commits / day</label>
+            <input type="number" id="rand-min" class="input-control" min="1" max="20" value="1" />
+          </div>
+          <div class="form-group">
+            <label for="rand-max">Max commits / day</label>
+            <input type="number" id="rand-max" class="input-control" min="1" max="20" value="5" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="rand-message">Commit Message</label>
+          <input type="text" id="rand-message" class="input-control" placeholder="Git learning commit" />
+        </div>
+
+        <div class="form-note">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Commits are created locally only. Nothing is pushed to any remote automatically.
+        </div>
+
+        <button id="btn-add-random" class="btn btn-primary btn-lg" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Random Contributions
+        </button>
+      </div>
+
+      <div id="random-result" class="result-panel hidden"></div>
+    </section>
+
+    <!-- ---- TAB 3: CONTRIBUTION ART ---- -->
+    <section id="tab-art" class="tab-section" aria-label="Contribution Art">
+      <div class="tab-header">
+        <h1>Contribution Art</h1>
+      </div>
+
+      <div class="art-layout">
+        <!-- Controls column -->
+        <div class="art-controls-col">
+          <div class="form-card">
+            <div class="form-group">
+              <label for="art-start-date">Start Date</label>
+              <input type="date" id="art-start-date" class="input-control" />
+            </div>
+
+            <div class="form-group">
+              <label>Grid Size (weeks × 7 days)</label>
+              <div class="form-row two-col">
+                <div class="form-group">
+                  <label for="art-cols" style="font-size:0.75rem;color:var(--text-muted)">Columns (weeks)</label>
+                  <input type="number" id="art-cols" class="input-control" min="1" max="52" value="12" />
+                </div>
+                <div></div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Paint Intensity</label>
+              <div class="intensity-picker" id="intensity-picker" role="group" aria-label="Select commit count">
+                <button class="intensity-btn" data-value="0" title="0 commits (clear)">0</button>
+                <button class="intensity-btn active" data-value="1" title="1 commit">1</button>
+                <button class="intensity-btn" data-value="2" title="2 commits">2</button>
+                <button class="intensity-btn" data-value="3" title="3 commits">3</button>
+                <button class="intensity-btn" data-value="5" title="5 commits">5</button>
+                <button class="intensity-btn" data-value="7" title="7 commits">7</button>
+              </div>
+            </div>
+
+            <div class="art-tool-row">
+              <button id="btn-art-clear" class="btn btn-ghost btn-sm">Clear All</button>
+              <button id="btn-art-resize" class="btn btn-ghost btn-sm">Apply Size</button>
+            </div>
+
+            <div class="form-group">
+              <label for="art-message">Commit Message</label>
+              <input type="text" id="art-message" class="input-control" placeholder="Git pattern commit" />
+            </div>
+
+            <div class="form-note">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              Click cells to paint. Each cell = 1 calendar day. Each value = commit count.
+            </div>
+          </div>
+
+          <!-- Preview/Apply buttons -->
+          <button id="btn-art-preview" class="btn btn-secondary btn-lg" disabled>
+            Preview Schedule
+          </button>
+          <button id="btn-art-apply" class="btn btn-primary btn-lg hidden" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Apply to Git
+          </button>
+
+          <div id="art-preview-panel" class="result-panel hidden"></div>
+          <div id="art-result-panel" class="result-panel hidden"></div>
+        </div>
+
+        <!-- Grid column -->
+        <div class="art-grid-col">
+          <div class="art-grid-header">
+            <div class="art-weekday-labels" id="art-weekday-labels">
+              <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+            </div>
+          </div>
+          <div class="art-grid-scroll">
+            <div class="art-grid" id="art-grid" role="grid" aria-label="Contribution art canvas"></div>
+          </div>
+          <div class="art-grid-legend">
+            <div class="calendar-legend">
+              <span class="legend-label">Less</span>
+              <span class="legend-cell l0"></span>
+              <span class="legend-cell l1"></span>
+              <span class="legend-cell l2"></span>
+              <span class="legend-cell l3"></span>
+              <span class="legend-cell l4"></span>
+              <span class="legend-label">More</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- TAB 4: REMOVE CONTRIBUTIONS ---- -->
+    <section id="tab-remove" class="tab-section" aria-label="Remove Contributions">
+      <div class="tab-header">
+        <h1>Remove Contributions</h1>
+      </div>
+
+      <div class="form-card">
+        <div class="caution-banner">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div>
+            <strong>Destructive operation.</strong> This rewrites Git history by removing commits within the selected date range. Use only on disposable/test repositories. Remote history will diverge — you will need to force-push manually.
+          </div>
+        </div>
+
+        <div class="form-row two-col">
+          <div class="form-group">
+            <label for="rm-start-date">Start Date</label>
+            <input type="date" id="rm-start-date" class="input-control" />
+          </div>
+          <div class="form-group">
+            <label for="rm-end-date">End Date</label>
+            <input type="date" id="rm-end-date" class="input-control" />
+          </div>
+        </div>
+
+        <button id="btn-rm-preview" class="btn btn-secondary btn-lg" disabled>
+          Preview Affected Commits
+        </button>
+      </div>
+
+      <!-- Confirmation panel (shown after preview) -->
+      <div id="rm-confirm-panel" class="confirm-panel hidden">
+        <div class="confirm-panel-inner">
+          <h2>Confirm History Rewrite</h2>
+          <div id="rm-confirm-details" class="confirm-details"></div>
+          <div class="confirm-actions">
+            <button id="btn-rm-cancel" class="btn btn-ghost">Cancel</button>
+            <button id="btn-rm-confirm" class="btn btn-danger">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              Yes, Remove These Commits
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="rm-result" class="result-panel hidden"></div>
+    </section>
+
+  </main>
+
+  <!-- ===================== TOAST NOTIFICATIONS ===================== -->
+  <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- ===================== LOADING OVERLAY ===================== -->
+  <div id="loading-overlay" class="loading-overlay hidden" aria-live="polite">
+    <div class="loading-spinner"></div>
+    <div id="loading-text" class="loading-text">Working…</div>
   </div>
 
-  <!-- Toast Notification System -->
-  <div id="toastContainer" class="toast-container"></div>
-
-  <!-- Application Scripts -->
-  <script src="js/repository.js"></script>
-  <script src="js/calendar.js"></script>
-  <script src="js/history.js"></script>
-  <script src="js/commitLab.js"></script>
-  <script src="js/designer.js"></script>
-  <script src="js/plans.js"></script>
-  <script src="js/remote.js"></script>
-  <script src="js/historyManager.js"></script>
-  <script src="js/app.js"></script>
+  <script src="/js/app.js"></script>
 </body>
 </html>

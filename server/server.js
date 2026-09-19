@@ -178,6 +178,149 @@ app.get('/api/contributions', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/contributions/random
+ * Creates random real Git commits across a date range.
+ * Body: { startDate, endDate, minCommits, maxCommits, message }
+ */
+app.post('/api/contributions/random', async (req, res) => {
+  try {
+    const { repoPath, settings } = await getValidatedRepoPath();
+    const {
+      startDate,
+      endDate,
+      minCommits = 1,
+      maxCommits = 5,
+      message
+    } = req.body;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ success: false, error: 'startDate and endDate are required.' });
+    }
+
+    const start = new Date(startDate + 'T00:00:00');
+    const end   = new Date(endDate   + 'T00:00:00');
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ success: false, error: 'Invalid date format. Use YYYY-MM-DD.' });
+    }
+    if (start > end) {
+      return res.status(400).json({ success: false, error: 'startDate must be before or equal to endDate.' });
+    }
+
+    const min = Math.max(1, parseInt(minCommits, 10) || 1);
+    const max = Math.max(min, parseInt(maxCommits, 10) || 5);
+
+    if (max > 20) {
+      return res.status(400).json({ success: false, error: 'maxCommits cannot exceed 20 per day for safety.' });
+    }
+
+    // Build a commit plan: for each date in range, random count
+    const commitPlan = [];
+    let cursor = new Date(start);
+    let totalEstimate = 0;
+
+    while (cursor <= end) {
+      const count = Math.floor(Math.random() * (max - min + 1)) + min;
+      totalEstimate += count;
+
+      if (totalEstimate > 500) {
+        return res.status(400).json({ success: false, error: 'Safety limit: total estimated commits > 500. Reduce date range or max commits.' });
+      }
+
+      const y = cursor.getFullYear();
+      const m = String(cursor.getMonth() + 1).padStart(2, '0');
+      const d = String(cursor.getDate()).padStart(2, '0');
+
+      commitPlan.push({
+        date: `${y}-${m}-${d}`,
+        time: '12:00:00',
+        count,
+        message: (message || settings.defaultCommitMessage || 'Git learning commit').trim(),
+        authorName: settings.authorName || 'Git Learner',
+        authorEmail: settings.authorEmail || 'learner@example.com'
+      });
+
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    const result = await gitWriter.createBatchCommits(repoPath, commitPlan);
+    const status = await repositoryService.getFullRepositoryStatus();
+
+    res.json({
+      success: true,
+      message: `Created ${result.createdCount} real Git commits across ${commitPlan.length} day(s).`,
+      createdCount: result.createdCount,
+      dayCount: commitPlan.length,
+      commits: result.commits,
+      status
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * POST /api/contributions/remove
+ * Removes real Git commits within a date range by rewriting history.
+ * Requires confirmed: true in body as explicit confirmation gate.
+ * Body: { startDate, endDate, confirmed }
+ */
+app.post('/api/contributions/remove', async (req, res) => {
+  try {
+    const { repoPath } = await getValidatedRepoPath();
+    const { startDate, endDate, confirmed } = req.body;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ success: false, error: 'startDate and endDate are required.' });
+    }
+
+    const start = new Date(startDate + 'T00:00:00');
+    const end   = new Date(endDate   + 'T23:59:59');
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ success: false, error: 'Invalid date format. Use YYYY-MM-DD.' });
+    }
+    if (start > end) {
+      return res.status(400).json({ success: false, error: 'startDate must be before or equal to endDate.' });
+    }
+
+    // Preview mode: return affected commit count without modifying anything
+    if (!confirmed) {
+      const history = await gitHistory.getCommitHistory(repoPath, {
+        startDate,
+        endDate,
+        limit: 2000
+      });
+      const remotes = await gitReader.getRemotes(repoPath);
+      return res.json({
+        success: true,
+        preview: true,
+        affectedCount: history.totalCommits,
+        hasRemote: remotes.length > 0,
+        remotes
+      });
+    }
+
+    // Confirmed: rewrite history
+    const result = await gitWriter.removeCommitsByDateRange(repoPath, startDate, endDate);
+    const status = await repositoryService.getFullRepositoryStatus();
+
+    res.json({
+      success: true,
+      message: `Removed ${result.removedCount} commit(s) from ${startDate} to ${endDate}. History rewritten.`,
+      removedCount: result.removedCount,
+      keptCount: result.keptCount,
+      originalHead: result.originalHead,
+      newHead: result.newHead,
+      status
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
 // ==========================================
 // 4. COMMIT LAB (PHASE 4)
 // ==========================================
