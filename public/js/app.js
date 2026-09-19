@@ -190,6 +190,7 @@ function enableButtons(enabled) {
   const btns = [
     qs('#btn-refresh-calendar'),
     qs('#btn-add-random'),
+    qs('#btn-add-random-push'),
     qs('#btn-art-preview'),
     qs('#btn-rm-preview')
   ];
@@ -402,10 +403,11 @@ function initRandom() {
   qs('#rand-start-date').value = today;
   qs('#rand-end-date').value   = weekFromNow;
 
-  qs('#btn-add-random').addEventListener('click', handleRandom);
+  qs('#btn-add-random').addEventListener('click', () => handleRandom(false));
+  qs('#btn-add-random-push').addEventListener('click', () => handleRandom(true));
 }
 
-async function handleRandom() {
+async function handleRandom(pushAfter = false) {
   const startDate  = qs('#rand-start-date').value;
   const endDate    = qs('#rand-end-date').value;
   const minCommits = parseInt(qs('#rand-min').value, 10) || 1;
@@ -418,7 +420,7 @@ async function handleRandom() {
   }
   if (maxCommits > 20) { toast('Max commits per day cannot exceed 20.', 'error'); return; }
 
-  setLoading(true, 'Creating commits…');
+  setLoading(true, pushAfter ? 'Creating commits & pushing…' : 'Creating commits…');
   const resultPanel = qs('#random-result');
   hide(resultPanel);
 
@@ -428,9 +430,21 @@ async function handleRandom() {
       body: JSON.stringify({ startDate, endDate, minCommits, maxCommits, message })
     });
 
+    // Optionally push
+    let pushMsg = '';
+    if (pushAfter) {
+      try {
+        setLoading(true, 'Pushing to remote…');
+        await apiFetch('/api/git/push', { method: 'POST', body: JSON.stringify({}) });
+        pushMsg = '<br/><span style="color:var(--accent)">✓ Pushed to remote successfully.</span>';
+      } catch (pushErr) {
+        pushMsg = `<br/><span style="color:var(--warning)">⚠ Commits created but push failed: ${escHtml(pushErr.message)}</span>`;
+      }
+    }
+
     resultPanel.className = 'result-panel success';
     resultPanel.innerHTML = `
-      <strong>✓ ${data.createdCount} commits created</strong> across ${data.dayCount} day(s) (${startDate} → ${endDate}).<br/>
+      <strong>✓ ${data.createdCount} commits created</strong> across ${data.dayCount} day(s) (${startDate} → ${endDate}).${pushMsg}<br/>
       <div class="commit-list">
         ${(data.commits || []).slice(0, 30).map(c => `
           <div class="commit-item">
@@ -442,7 +456,17 @@ async function handleRandom() {
       </div>`;
     show(resultPanel);
 
-    toast(`Created ${data.createdCount} commits!`, 'success');
+    const successMsg = pushAfter
+      ? `Created ${data.createdCount} commits & pushed!`
+      : `Created ${data.createdCount} commits!`;
+    toast(successMsg, 'success');
+
+    updateGitStatusBar();
+    if (state.calendarYear) {
+      apiFetch(`/api/contributions?year=${state.calendarYear}`)
+        .then(res => { if (res.calendar) renderCalendar(res.calendar); })
+        .catch(() => {});
+    }
   } catch (err) {
     resultPanel.className   = 'result-panel error';
     resultPanel.textContent = `Error: ${err.message}`;

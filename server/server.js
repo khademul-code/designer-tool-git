@@ -629,7 +629,11 @@ app.post('/api/git/pull', async (req, res) => {
 app.post('/api/git/push', async (req, res) => {
   try {
     const { repoPath, settings } = await getValidatedRepoPath();
-    const { remoteName = settings.remoteName, branchName = settings.defaultBranch, force = false } = req.body;
+    const currentBranch = await gitReader.getCurrentBranch(repoPath).catch(() => null);
+    const resolvedBranch = (currentBranch && currentBranch !== 'unknown' && !currentBranch.includes(' '))
+      ? currentBranch
+      : (settings.defaultBranch || 'main');
+    const { remoteName = settings.remoteName || 'origin', branchName = (req.body.branchName || resolvedBranch), force = false } = req.body;
 
     const result = await gitWriter.pushToRemote(repoPath, remoteName, branchName, force);
     const status = await repositoryService.getFullRepositoryStatus();

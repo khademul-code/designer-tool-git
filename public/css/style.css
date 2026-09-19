@@ -819,4 +819,27 @@ input, select { font-family: inherit; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ---- Utilities ---- */
+/* ---- Utilities ---- */
 .hidden { display: none !important; }
+
+/* ---- Two-button row ---- */
+.btn-duo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.btn-duo .btn-lg {
+  margin-top: 0;
+}
+
+/* Push button — distinct purple/indigo tone */
+.btn-push {
+  background: #6e40c9;
+  color: #fff;
+  border: none;
+}
+.btn-push:not(:disabled):hover { background: #7c4fd4; }
+.btn-push:disabled { opacity: 0.45; cursor: not-allowed; }
+

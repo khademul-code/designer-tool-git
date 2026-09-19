@@ -173,13 +173,19 @@
 
         <div class="form-note">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          Commits are created locally only. Nothing is pushed to any remote automatically.
+          Choose <strong>Add Locally</strong> to create commits on your machine, or <strong>Commit &amp; Push</strong> to also publish them to the remote.
         </div>
 
-        <button id="btn-add-random" class="btn btn-primary btn-lg" disabled>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Add Random Contributions
-        </button>
+        <div class="btn-duo">
+          <button id="btn-add-random" class="btn btn-primary btn-lg" disabled>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Locally
+          </button>
+          <button id="btn-add-random-push" class="btn btn-push btn-lg" disabled>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/></svg>
+            Commit &amp; Push
+          </button>
+        </div>
       </div>
 
       <div id="random-result" class="result-panel hidden"></div>
