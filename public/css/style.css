@@ -843,3 +843,85 @@ input, select { font-family: inherit; }
 .btn-push:not(:disabled):hover { background: #7c4fd4; }
 .btn-push:disabled { opacity: 0.45; cursor: not-allowed; }
 
+.btn-full {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ---- Sidebar Unpushed Box ---- */
+.unpushed-box {
+  background: rgba(110, 64, 201, 0.12);
+  border: 1px solid rgba(110, 64, 201, 0.35);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fadeIn 0.2s ease;
+}
+
+.unpushed-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: #d2a8ff;
+}
+
+.unpushed-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #a371f7;
+  box-shadow: 0 0 6px #a371f7;
+  animation: pulse-glow 2s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.6; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1.15); box-shadow: 0 0 10px #bc8cff; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- Top Info Strip Unpushed Chip ---- */
+.info-chip.chip-unpushed {
+  background: rgba(110, 64, 201, 0.15);
+  border-color: rgba(110, 64, 201, 0.45);
+  color: #d2a8ff;
+}
+
+.chip-push-btn {
+  background: #6e40c9;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: 4px;
+  transition: background 0.12s;
+}
+
+.chip-push-btn:hover:not(:disabled) {
+  background: #7c4fd4;
+}
+
+.chip-push-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---- Footer Unpushed Badge ---- */
+.unpushed-pill {
+  color: #d2a8ff;
+  font-weight: 600;
+  font-size: 0.7rem;
+}
+

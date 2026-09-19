@@ -168,6 +168,13 @@ function initRepository() {
     if (e.key === 'Enter') btnConnect.click();
   });
 
+  // Push button listeners
+  const btnSidebarPush = qs('#btn-sidebar-push');
+  if (btnSidebarPush) btnSidebarPush.addEventListener('click', handlePush);
+
+  const btnStripPush = qs('#btn-strip-push');
+  if (btnStripPush) btnStripPush.addEventListener('click', handlePush);
+
   // Load saved repo on startup
   loadSavedRepo();
 }
@@ -192,9 +199,60 @@ function enableButtons(enabled) {
     qs('#btn-add-random'),
     qs('#btn-add-random-push'),
     qs('#btn-art-preview'),
-    qs('#btn-rm-preview')
+    qs('#btn-rm-preview'),
+    qs('#btn-sidebar-push'),
+    qs('#btn-strip-push')
   ];
   btns.forEach(b => { if (b) b.disabled = !enabled; });
+}
+
+let isPushing = false;
+
+async function handlePush() {
+  if (isPushing || !state.isConnected) return;
+  isPushing = true;
+
+  const sidebarBtn = qs('#btn-sidebar-push');
+  const stripBtn = qs('#btn-strip-push');
+
+  if (sidebarBtn) {
+    sidebarBtn.disabled = true;
+    sidebarBtn.innerHTML = `<span class="spinner" style="width:12px;height:12px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin 0.8s linear infinite"></span> Pushing…`;
+  }
+  if (stripBtn) {
+    stripBtn.disabled = true;
+    stripBtn.textContent = 'Pushing…';
+  }
+  setLoading(true, 'Pushing commits to remote…');
+
+  try {
+    const data = await apiFetch('/api/git/push', {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+
+    toast(data.output || 'Commits pushed to remote successfully!', 'success');
+    await updateGitStatusBar();
+    if (state.calendarYear) {
+      refreshCalendar();
+    }
+  } catch (err) {
+    toast(`Push failed: ${err.message}`, 'error');
+  } finally {
+    isPushing = false;
+    setLoading(false);
+    if (sidebarBtn) {
+      sidebarBtn.disabled = false;
+      sidebarBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/></svg>
+        Push to Remote`;
+    }
+    if (stripBtn) {
+      stripBtn.disabled = false;
+      stripBtn.textContent = 'Push';
+    }
+    updateGitStatusBar();
+  }
 }
 
 async function updateGitStatusBar() {
@@ -210,6 +268,39 @@ async function updateGitStatusBar() {
     qs('#chip-status-text').textContent     = git.isClean ? 'Clean' : 'Modified';
     qs('#chip-total-commits').textContent   = `${git.totalCommits ?? 0} total commits`;
     show(qs('#repo-info-strip'));
+
+    // Handle unpushed commits display
+    const unpushed = git.unpushedCommits || 0;
+    const unpushedBox = qs('#unpushed-box');
+    const chipUnpushed = qs('#chip-unpushed');
+    const footerUnpushed = qs('#git-unpushed-footer');
+
+    if (unpushed > 0) {
+      if (unpushedBox) {
+        show(unpushedBox);
+        const countTxt = qs('#unpushed-count-text');
+        if (countTxt) countTxt.textContent = `${unpushed} unpushed commit${unpushed !== 1 ? 's' : ''}`;
+        const btnSidebarPush = qs('#btn-sidebar-push');
+        if (btnSidebarPush && !isPushing) {
+          btnSidebarPush.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/></svg>
+            Push to Remote (${unpushed})`;
+        }
+      }
+      if (chipUnpushed) {
+        show(chipUnpushed);
+        const chipTxt = qs('#chip-unpushed-text');
+        if (chipTxt) chipTxt.textContent = `${unpushed} unpushed`;
+      }
+      if (footerUnpushed) {
+        show(footerUnpushed);
+        footerUnpushed.textContent = `· ${unpushed} unpushed`;
+      }
+    } else {
+      if (unpushedBox) hide(unpushedBox);
+      if (chipUnpushed) hide(chipUnpushed);
+      if (footerUnpushed) hide(footerUnpushed);
+    }
   } catch (e) {
     // silently ignore status errors
   }
