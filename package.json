@@ -1,0 +1,23 @@
+{
+  "name": "git-contribution-designer",
+  "version": "1.0.0",
+  "description": "A local-first web application for learning Git internals, commit dates, and Git history management with a disposable test repository.",
+  "main": "server/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node --watch server/server.js"
+  },
+  "keywords": [
+    "git",
+    "learning",
+    "git-internals",
+    "contributions",
+    "history-lab"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

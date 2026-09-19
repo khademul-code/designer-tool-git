@@ -1,0 +1,22 @@
+[
+  {
+    "id": "plan-1789790055247-913",
+    "name": "Weekend Sprints",
+    "source": "designer",
+    "message": "Sprint commit",
+    "authorName": "Git Learner",
+    "authorEmail": "learner@example.com",
+    "schedule": [
+      {
+        "date": "2026-09-18",
+        "count": 2
+      }
+    ],
+    "totalDays": 1,
+    "totalCommits": 2,
+    "status": "completed",
+    "createdAt": "2026-09-19T03:54:15.248Z",
+    "completedAt": "2026-09-19T03:54:15.624Z",
+    "createdCommitsCount": 2
+  }
+]
