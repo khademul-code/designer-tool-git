@@ -938,6 +938,13 @@ input, select { font-family: inherit; }
   line-height: 1.3;
 }
 
+.push-count-badge.zero {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  font-weight: 500;
+}
+
 /* ---- Unpushed Notice Box below sidebar button ---- */
 .unpushed-notice {
   display: flex;
@@ -952,4 +959,47 @@ input, select { font-family: inherit; }
   border-radius: var(--radius-sm);
   margin-top: 4px;
 }
+
+.unpushed-dot.clean {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+  animation: none;
+}
+
+/* ---- Estimate Strip for Random Contributions ---- */
+.estimate-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin-top: 10px;
+  margin-bottom: 6px;
+  font-size: 0.775rem;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.est-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.est-label {
+  color: var(--text-muted);
+}
+
+.est-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.est-value.highlight {
+  color: #39d353;
+}
+
 

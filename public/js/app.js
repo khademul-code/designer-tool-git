@@ -286,43 +286,78 @@ async function updateGitStatusBar() {
     qs('#chip-total-commits').textContent   = `${git.totalCommits ?? 0} total commits`;
     show(qs('#repo-info-strip'));
 
-    // Handle unpushed commits display
+    // Handle unpushed commits display - ALWAYS show commit count that will be published
     const unpushed = git.unpushedCommits || 0;
+    state.unpushedCommits = unpushed;
+
     const sidebarBadge = qs('#sidebar-push-badge');
     const headerBadge  = qs('#header-push-badge');
     const unpushedNotice = qs('#unpushed-notice');
+    const unpushedDot = qs('#unpushed-dot-icon');
+    const unpushedNoticeText = qs('#unpushed-notice-text');
     const chipUnpushed = qs('#chip-unpushed');
     const footerUnpushed = qs('#git-unpushed-footer');
 
+    // Update Random estimate unpushed count
+    const randEstUnpushed = qs('#rand-est-unpushed');
+    if (randEstUnpushed) {
+      randEstUnpushed.textContent = `${unpushed} to publish`;
+    }
+
     if (unpushed > 0) {
       if (sidebarBadge) {
-        sidebarBadge.textContent = unpushed;
+        sidebarBadge.textContent = `${unpushed} to publish`;
+        sidebarBadge.classList.remove('zero');
         show(sidebarBadge);
       }
       if (headerBadge) {
-        headerBadge.textContent = unpushed;
+        headerBadge.textContent = `${unpushed} to publish`;
+        headerBadge.classList.remove('zero');
         show(headerBadge);
       }
       if (unpushedNotice) {
         show(unpushedNotice);
-        const noticeTxt = qs('#unpushed-notice-text');
-        if (noticeTxt) noticeTxt.textContent = `${unpushed} unpushed commit${unpushed !== 1 ? 's' : ''}`;
+        if (unpushedDot) unpushedDot.className = 'unpushed-dot';
+        if (unpushedNoticeText) unpushedNoticeText.textContent = `⚠️ ${unpushed} commit${unpushed !== 1 ? 's' : ''} to publish`;
       }
       if (chipUnpushed) {
         show(chipUnpushed);
         const chipTxt = qs('#chip-unpushed-text');
-        if (chipTxt) chipTxt.textContent = `${unpushed} unpushed`;
+        if (chipTxt) chipTxt.textContent = `${unpushed} to publish`;
+        const stripBtn = qs('#btn-strip-push');
+        if (stripBtn) show(stripBtn);
       }
       if (footerUnpushed) {
         show(footerUnpushed);
-        footerUnpushed.textContent = `· ${unpushed} unpushed`;
+        footerUnpushed.textContent = `· ${unpushed} to publish`;
       }
     } else {
-      if (sidebarBadge) hide(sidebarBadge);
-      if (headerBadge) hide(headerBadge);
-      if (unpushedNotice) hide(unpushedNotice);
-      if (chipUnpushed) hide(chipUnpushed);
-      if (footerUnpushed) hide(footerUnpushed);
+      if (sidebarBadge) {
+        sidebarBadge.textContent = '0 to publish';
+        sidebarBadge.classList.add('zero');
+        show(sidebarBadge);
+      }
+      if (headerBadge) {
+        headerBadge.textContent = '0 to publish';
+        headerBadge.classList.add('zero');
+        show(headerBadge);
+      }
+      if (unpushedNotice) {
+        show(unpushedNotice);
+        if (unpushedDot) unpushedDot.className = 'unpushed-dot clean';
+        if (unpushedNoticeText) unpushedNoticeText.textContent = '✓ 0 commits to publish (up to date)';
+      }
+      if (chipUnpushed) {
+        show(chipUnpushed);
+        const chipTxt = qs('#chip-unpushed-text');
+        if (chipTxt) chipTxt.textContent = '0 to publish (up to date)';
+        const stripBtn = qs('#btn-strip-push');
+        if (stripBtn) hide(stripBtn);
+      }
+      if (footerUnpushed) {
+        show(footerUnpushed);
+        footerUnpushed.textContent = '· 0 to publish';
+      }
     }
   } catch (e) {
     // silently ignore status errors
@@ -514,8 +549,58 @@ function initRandom() {
   const today       = todayStr();
   const weekFromNow = addDays(today, 6);
 
-  qs('#rand-start-date').value = today;
-  qs('#rand-end-date').value   = weekFromNow;
+  const startDateInput = qs('#rand-start-date');
+  const endDateInput   = qs('#rand-end-date');
+  const minInput       = qs('#rand-min');
+  const maxInput       = qs('#rand-max');
+
+  startDateInput.value = today;
+  endDateInput.value   = weekFromNow;
+
+  const updateRandomEstimate = () => {
+    const s = startDateInput.value;
+    const e = endDateInput.value;
+    const min = parseInt(minInput.value, 10) || 1;
+    const max = parseInt(maxInput.value, 10) || 1;
+
+    const estDays = qs('#rand-est-days');
+    const estCommits = qs('#rand-est-commits');
+    const estUnpushed = qs('#rand-est-unpushed');
+
+    if (estUnpushed) {
+      estUnpushed.textContent = `${state.unpushedCommits || 0} to publish`;
+    }
+
+    if (!s || !e) return;
+    const d1 = new Date(s);
+    const d2 = new Date(e);
+    const diffTime = d2.getTime() - d1.getTime();
+    const days = Math.round(diffTime / (1000 * 3600 * 24)) + 1;
+
+    if (days <= 0) {
+      if (estDays) estDays.textContent = 'Invalid range';
+      if (estCommits) estCommits.textContent = '0 commits';
+      return;
+    }
+
+    if (estDays) estDays.textContent = `${days} day${days !== 1 ? 's' : ''}`;
+    const minTot = days * Math.min(min, max);
+    const maxTot = days * Math.max(min, max);
+    if (estCommits) {
+      if (minTot === maxTot) {
+        estCommits.textContent = `${minTot} commit${minTot !== 1 ? 's' : ''}`;
+      } else {
+        estCommits.textContent = `~${minTot} – ${maxTot} commits`;
+      }
+    }
+  };
+
+  startDateInput.addEventListener('input', updateRandomEstimate);
+  endDateInput.addEventListener('input', updateRandomEstimate);
+  minInput.addEventListener('input', updateRandomEstimate);
+  maxInput.addEventListener('input', updateRandomEstimate);
+
+  updateRandomEstimate();
 
   qs('#btn-add-random').addEventListener('click', () => handleRandom(false));
   qs('#btn-add-random-push').addEventListener('click', () => handleRandom(true));
