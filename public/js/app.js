@@ -172,6 +172,9 @@ function initRepository() {
   const btnSidebarPush = qs('#btn-sidebar-push');
   if (btnSidebarPush) btnSidebarPush.addEventListener('click', handlePush);
 
+  const btnHeaderPush = qs('#btn-header-push');
+  if (btnHeaderPush) btnHeaderPush.addEventListener('click', handlePush);
+
   const btnStripPush = qs('#btn-strip-push');
   if (btnStripPush) btnStripPush.addEventListener('click', handlePush);
 
@@ -201,6 +204,7 @@ function enableButtons(enabled) {
     qs('#btn-art-preview'),
     qs('#btn-rm-preview'),
     qs('#btn-sidebar-push'),
+    qs('#btn-header-push'),
     qs('#btn-strip-push')
   ];
   btns.forEach(b => { if (b) b.disabled = !enabled; });
@@ -213,12 +217,17 @@ async function handlePush() {
   isPushing = true;
 
   const sidebarBtn = qs('#btn-sidebar-push');
-  const stripBtn = qs('#btn-strip-push');
+  const headerBtn  = qs('#btn-header-push');
+  const stripBtn   = qs('#btn-strip-push');
 
-  if (sidebarBtn) {
-    sidebarBtn.disabled = true;
-    sidebarBtn.innerHTML = `<span class="spinner" style="width:12px;height:12px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin 0.8s linear infinite"></span> Pushing…`;
-  }
+  const setBtnLoading = (btn) => {
+    if (!btn) return;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner" style="width:12px;height:12px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin 0.8s linear infinite"></span> Pushing…`;
+  };
+
+  setBtnLoading(sidebarBtn);
+  setBtnLoading(headerBtn);
   if (stripBtn) {
     stripBtn.disabled = true;
     stripBtn.textContent = 'Pushing…';
@@ -245,7 +254,15 @@ async function handlePush() {
       sidebarBtn.disabled = false;
       sidebarBtn.innerHTML = `
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/></svg>
-        Push to Remote`;
+        <span id="sidebar-push-text">Push to Remote</span>
+        <span id="sidebar-push-badge" class="push-count-badge hidden">0</span>`;
+    }
+    if (headerBtn) {
+      headerBtn.disabled = false;
+      headerBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/></svg>
+        <span id="header-push-text">Push to Remote</span>
+        <span id="header-push-badge" class="push-count-badge hidden">0</span>`;
     }
     if (stripBtn) {
       stripBtn.disabled = false;
@@ -271,21 +288,25 @@ async function updateGitStatusBar() {
 
     // Handle unpushed commits display
     const unpushed = git.unpushedCommits || 0;
-    const unpushedBox = qs('#unpushed-box');
+    const sidebarBadge = qs('#sidebar-push-badge');
+    const headerBadge  = qs('#header-push-badge');
+    const unpushedNotice = qs('#unpushed-notice');
     const chipUnpushed = qs('#chip-unpushed');
     const footerUnpushed = qs('#git-unpushed-footer');
 
     if (unpushed > 0) {
-      if (unpushedBox) {
-        show(unpushedBox);
-        const countTxt = qs('#unpushed-count-text');
-        if (countTxt) countTxt.textContent = `${unpushed} unpushed commit${unpushed !== 1 ? 's' : ''}`;
-        const btnSidebarPush = qs('#btn-sidebar-push');
-        if (btnSidebarPush && !isPushing) {
-          btnSidebarPush.innerHTML = `
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/></svg>
-            Push to Remote (${unpushed})`;
-        }
+      if (sidebarBadge) {
+        sidebarBadge.textContent = unpushed;
+        show(sidebarBadge);
+      }
+      if (headerBadge) {
+        headerBadge.textContent = unpushed;
+        show(headerBadge);
+      }
+      if (unpushedNotice) {
+        show(unpushedNotice);
+        const noticeTxt = qs('#unpushed-notice-text');
+        if (noticeTxt) noticeTxt.textContent = `${unpushed} unpushed commit${unpushed !== 1 ? 's' : ''}`;
       }
       if (chipUnpushed) {
         show(chipUnpushed);
@@ -297,7 +318,9 @@ async function updateGitStatusBar() {
         footerUnpushed.textContent = `· ${unpushed} unpushed`;
       }
     } else {
-      if (unpushedBox) hide(unpushedBox);
+      if (sidebarBadge) hide(sidebarBadge);
+      if (headerBadge) hide(headerBadge);
+      if (unpushedNotice) hide(unpushedNotice);
       if (chipUnpushed) hide(chipUnpushed);
       if (footerUnpushed) hide(footerUnpushed);
     }

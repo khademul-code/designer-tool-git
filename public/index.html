@@ -39,16 +39,16 @@
       <button id="btn-connect-repo" class="btn btn-primary btn-sm">Connect Repository</button>
       <div id="repo-status-badge" class="status-badge"></div>
 
-      <!-- Unpushed Commits Alert & Push Action -->
-      <div id="unpushed-box" class="unpushed-box hidden">
-        <div class="unpushed-header">
-          <span class="unpushed-dot"></span>
-          <span id="unpushed-count-text">0 unpushed commits</span>
-        </div>
-        <button id="btn-sidebar-push" class="btn btn-push btn-sm btn-full">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/></svg>
-          Push to Remote
-        </button>
+      <!-- Push to Remote Action (Permanently Visible) -->
+      <button id="btn-sidebar-push" class="btn btn-push btn-sm btn-full" disabled title="Push commits to remote repository">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/></svg>
+        <span id="sidebar-push-text">Push to Remote</span>
+        <span id="sidebar-push-badge" class="push-count-badge hidden">0</span>
+      </button>
+
+      <div id="unpushed-notice" class="unpushed-notice hidden">
+        <span class="unpushed-dot"></span>
+        <span id="unpushed-notice-text">0 unpushed commits</span>
       </div>
     </div>
 
@@ -97,6 +97,11 @@
           <button id="btn-refresh-calendar" class="btn btn-ghost btn-sm">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.11"/></svg>
             Refresh
+          </button>
+          <button id="btn-header-push" class="btn btn-push btn-sm" disabled title="Push commits to remote repository">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/></svg>
+            <span id="header-push-text">Push to Remote</span>
+            <span id="header-push-badge" class="push-count-badge hidden">0</span>
           </button>
         </div>
       </div>

@@ -925,3 +925,31 @@ input, select { font-family: inherit; }
   font-size: 0.7rem;
 }
 
+/* ---- Push Count Badge on Buttons ---- */
+.push-count-badge {
+  background: #f85149;
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 1px 7px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  margin-left: 5px;
+  display: inline-block;
+  line-height: 1.3;
+}
+
+/* ---- Unpushed Notice Box below sidebar button ---- */
+.unpushed-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #d2a8ff;
+  padding: 5px 8px;
+  background: rgba(110, 64, 201, 0.12);
+  border: 1px solid rgba(110, 64, 201, 0.35);
+  border-radius: var(--radius-sm);
+  margin-top: 4px;
+}
+
