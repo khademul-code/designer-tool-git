@@ -66,10 +66,6 @@ async function getContributionCalendar(repoPath, year = null) {
   let totalActiveDays = 0;
   let maxDayCount = 0;
 
-  // Track month header labels
-  const monthLabels = [];
-  let lastMonth = -1;
-
   while (currentDate <= endDate || currentWeek.length > 0) {
     const y = currentDate.getFullYear();
     const m = String(currentDate.getMonth() + 1).padStart(2, '0');
@@ -101,18 +97,6 @@ async function getContributionCalendar(repoPath, year = null) {
 
     // If we've completed a full week (Sunday through Saturday = 7 days)
     if (currentWeek.length === 7) {
-      const firstDayOfWeek = currentWeek[0];
-      const monthIndex = firstDayOfWeek.month;
-      
-      // Register month label if month changed
-      if (monthIndex !== lastMonth && isWithinRange) {
-        monthLabels.push({
-          weekIndex: weeks.length,
-          monthName: new Intl.DateTimeFormat('en-US', { month: 'short' }).format(new Date(y, monthIndex, 1))
-        });
-        lastMonth = monthIndex;
-      }
-
       weeks.push(currentWeek);
       currentWeek = [];
     }
@@ -122,6 +106,22 @@ async function getContributionCalendar(repoPath, year = null) {
     // Safety guard to avoid runaway loop
     if (weeks.length > 54) break;
   }
+
+  // Build accurate month header labels directly mapped to week columns
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthLabels = [];
+  const recordedMonths = new Set();
+
+  weeks.forEach((week, wIdx) => {
+    const firstDay = week.find(d => d.isWithinRange && (d.dayOfMonth === 1 || (wIdx === 0 && d.isWithinRange)));
+    if (firstDay && !recordedMonths.has(firstDay.month)) {
+      monthLabels.push({
+        weekIndex: wIdx,
+        monthName: monthNames[firstDay.month]
+      });
+      recordedMonths.add(firstDay.month);
+    }
+  });
 
   // Weekday labels (Sun, Mon, Tue, Wed, Thu, Fri, Sat)
   const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

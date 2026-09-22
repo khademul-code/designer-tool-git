@@ -462,10 +462,10 @@ function renderCalendar(cal) {
 
   // -- Weekday labels column --
   const wdCol = document.createElement('div');
-  wdCol.style.cssText = 'display:flex; flex-direction:column; gap:3px; padding-top:18px;';
+  wdCol.style.cssText = 'display:flex; flex-direction:column; gap:3px; padding-top:22px;';
   ['', 'Mon', '', 'Wed', '', 'Fri', ''].forEach(label => {
     const span = document.createElement('span');
-    span.style.cssText = `font-size:0.6rem; color:var(--text-muted); height:13px; line-height:13px; text-align:right; padding-right:4px; min-width:28px;`;
+    span.style.cssText = `font-size:0.6rem; color:var(--text-muted); height:13px; line-height:13px; text-align:right; padding-right:6px; min-width:28px;`;
     span.textContent = label;
     wdCol.appendChild(span);
   });
@@ -475,29 +475,23 @@ function renderCalendar(cal) {
   const weeksArea = document.createElement('div');
   weeksArea.style.cssText = 'display:flex; flex-direction:column; gap:0;';
 
-  // Month labels row
+  // Month labels row (positioned directly above matching week columns)
   const monthsRow = document.createElement('div');
-  monthsRow.style.cssText = 'display:flex; gap:3px; margin-bottom:4px; height:14px;';
+  monthsRow.style.cssText = 'position:relative; height:18px; margin-bottom:4px;';
 
-  let lastMonth = -1;
-  let weekIdx = 0;
-  cal.weeks.forEach(week => {
-    const firstInRange = week.find(d => d.isWithinRange);
-    if (firstInRange && firstInRange.month !== lastMonth) {
+  const monthLabels = cal.monthLabels || [];
+  let lastPlacedX = -50;
+
+  monthLabels.forEach(m => {
+    const leftPx = m.weekIndex * 16;
+    // Avoid overlap by maintaining at least 28px separation
+    if (leftPx - lastPlacedX >= 28 && m.weekIndex < (cal.weeks?.length || 53)) {
       const label = document.createElement('span');
-      label.style.cssText = `font-size:0.65rem; color:var(--text-muted); white-space:nowrap; min-width:${16 * 3}px;`;
-      label.textContent = new Intl.DateTimeFormat('en-US', { month: 'short' }).format(
-        new Date(firstInRange.date)
-      );
+      label.style.cssText = `position:absolute; left:${leftPx}px; font-size:0.68rem; font-weight:500; color:var(--text-muted); white-space:nowrap; pointer-events:none;`;
+      label.textContent = m.monthName;
       monthsRow.appendChild(label);
-      lastMonth = firstInRange.month;
-    } else {
-      // Filler span to maintain alignment
-      const filler = document.createElement('span');
-      filler.style.cssText = 'display:inline-block; min-width:16px;';
-      // Don't append filler — month label approach is positional, not per-week
+      lastPlacedX = leftPx;
     }
-    weekIdx++;
   });
   weeksArea.appendChild(monthsRow);
 
