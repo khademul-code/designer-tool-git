@@ -352,10 +352,10 @@
       </div>
 
       <div class="form-card">
-        <div class="caution-banner">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div class="caution-banner" style="background: rgba(30, 41, 59, 0.7); border-left: 4px solid var(--accent, #3b82f6);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent, #3b82f6)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
           <div>
-            <strong>Destructive operation.</strong> This rewrites Git history by removing commits within the selected date range. Use only on disposable/test repositories. Remote history will diverge — you will need to force-push manually.
+            <strong>Smart Safe Removal.</strong> Only empty contribution commits (0 file changes) are removable. Any commits containing real code are strictly protected and will never be deleted.
           </div>
         </div>
 

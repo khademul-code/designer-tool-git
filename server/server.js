@@ -301,30 +301,38 @@ app.post('/api/contributions/remove', async (req, res) => {
       return res.status(400).json({ success: false, error: 'startDate must be before or equal to endDate.' });
     }
 
-    // Preview mode: return affected commit count without modifying anything
+    // Preview mode: scan commits and classify into empty (removable) vs code (protected)
     if (!confirmed) {
-      const history = await gitHistory.getCommitHistory(repoPath, {
-        startDate,
-        endDate,
-        limit: 2000
-      });
+      const scan = await gitReader.scanCommitsWithTree(repoPath, { startDate, endDate });
       const remotes = await gitReader.getRemotes(repoPath);
       return res.json({
         success: true,
         preview: true,
-        affectedCount: history.totalCommits,
+        emptyCommits: scan.emptyCommits,
+        emptyCount: scan.emptyCommits.length,
+        codeCommits: scan.codeCommits,
+        codeCount: scan.codeCommits.length,
+        affectedCount: scan.emptyCommits.length,
         hasRemote: remotes.length > 0,
         remotes
       });
     }
 
-    // Confirmed: rewrite history
-    const result = await gitWriter.removeCommitsByDateRange(repoPath, startDate, endDate);
+    // Confirmed: safely remove only empty contribution commits
+    const { hashes } = req.body;
+    let result;
+    if (Array.isArray(hashes) && hashes.length > 0) {
+      result = await gitWriter.removeEmptyCommits(repoPath, hashes);
+    } else {
+      result = await gitWriter.removeCommitsByDateRange(repoPath, startDate, endDate);
+    }
     const status = await repositoryService.getFullRepositoryStatus();
 
     res.json({
       success: true,
-      message: `Removed ${result.removedCount} commit(s) from ${startDate} to ${endDate}. History rewritten.`,
+      message: result.removedCount > 0
+        ? `Safely removed ${result.removedCount} empty contribution commit(s). All real code commits were preserved.`
+        : `No empty contribution commits were found in this date range. Your code commits were preserved.`,
       removedCount: result.removedCount,
       keptCount: result.keptCount,
       originalHead: result.originalHead,

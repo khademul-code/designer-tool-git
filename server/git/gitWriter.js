@@ -298,146 +298,156 @@ async function resetTestBranch(repoPath, branchName = 'main') {
  * @param {string} endDate   - "YYYY-MM-DD" inclusive
  * @returns {Promise<{ removedCount: number, keptCount: number, originalHead: string, newHead: string }>}
  */
-async function removeCommitsByDateRange(repoPath, startDate, endDate) {
-  // 1. Get all commit hashes with their author ISO dates (oldest first)
-  const { stdout } = await runGit(
-    ['log', '--format=%H%x00%aI', '--reverse'],
-    repoPath
-  );
-
-  if (!stdout || !stdout.trim()) {
-    return { removedCount: 0, keptCount: 0, originalHead: '', newHead: '' };
-  }
-
-  // 2. Build sets of hashes to remove
-  const start = new Date(startDate + 'T00:00:00');
-  const end   = new Date(endDate   + 'T23:59:59');
-
-  const allLines = stdout.split('\n').map(l => l.trim()).filter(Boolean);
-  const hashesToRemove = new Set();
-  let keptCount = 0;
-
-  for (const line of allLines) {
-    const [hash, isoDate] = line.split('\x00');
-    if (!hash || !isoDate) continue;
-    const commitDate = new Date(isoDate);
-    if (commitDate >= start && commitDate <= end) {
-      hashesToRemove.add(hash);
-    } else {
-      keptCount++;
-    }
-  }
-
+/**
+ * Safely removes only verified empty commits (0 file changes) by replaying branch history
+ * using git commit-tree, leaving all real code commits, working files, and index 100% intact.
+ * 
+ * @param {string} repoPath 
+ * @param {Set<string>|Array<string>} targetHashes - commit hashes to remove
+ * @returns {Promise<{ removedCount: number, keptCount: number, originalHead: string, newHead: string }>}
+ */
+async function removeEmptyCommits(repoPath, targetHashes) {
+  const hashesToRemove = new Set(Array.from(targetHashes || []).map(h => h.trim().toLowerCase()));
   if (hashesToRemove.size === 0) {
-    // Nothing to remove
     const { stdout: head } = await runGit(['rev-parse', 'HEAD'], repoPath);
-    return { removedCount: 0, keptCount, originalHead: head.trim(), newHead: head.trim() };
+    return { removedCount: 0, keptCount: 0, originalHead: head.trim(), newHead: head.trim() };
   }
 
-  const { stdout: originalHead } = await runGit(['rev-parse', 'HEAD'], repoPath);
   const { stdout: currentBranch } = await runGit(['branch', '--show-current'], repoPath);
   const branchName = currentBranch.trim() || 'main';
 
-  // 3. Create a scratch file with hashes to remove (so we don't need shell eval)
-  //    We will use git filter-branch with --commit-filter that reads a temp env var.
-  //    However, filter-branch needs shell on Windows, which is tricky.
-  //    Instead: cherry-pick approach — build new history on orphan branch.
+  // Read full history in reverse order (oldest to newest)
+  // Format: %H%x00%P%x00%T%x00%an%x00%ae%x00%aI%x00%cn%x00%ce%x00%cI%x00%B%x00END_COMMIT
+  const { stdout: logOutput } = await runGit([
+    'log',
+    '--format=%H%x00%P%x00%T%x00%an%x00%ae%x00%aI%x00%cn%x00%ce%x00%cI%x00%B%x00END_COMMIT',
+    '--reverse',
+    branchName
+  ], repoPath);
 
-  const orphanBranch = `__v2_rebuild_${Date.now()}`;
+  const rawRecords = (logOutput || '').split('END_COMMIT\n').map(r => r.trim()).filter(Boolean);
+  if (rawRecords.length === 0) {
+    return { removedCount: 0, keptCount: 0, originalHead: '', newHead: '' };
+  }
 
-  // 3a. Create orphan branch (no history)
-  await runGit(['checkout', '--orphan', orphanBranch], repoPath);
-  // Clear index
-  await runGit(['rm', '-rf', '--cached', '.'], repoPath).catch(() => {});
-  // Remove working tree files if any (allow-empty repos typically have none)
-  const { execFile } = require('child_process');
+  // Index commits and verify each hash to remove is an empty commit
+  const parsedCommits = [];
+  const commitMap = new Map();
 
-  // 3b. Cherry-pick all commits NOT in removal set, in order oldest→newest
-  const keptHashes = allLines
-    .map(l => l.split('\x00')[0])
-    .filter(h => h && !hashesToRemove.has(h));
+  for (const rec of rawRecords) {
+    const parts = rec.split('\x00');
+    if (parts.length < 10) continue;
+    const [hash, parentsRaw, tree, an, ae, ad, cn, ce, cd, msg] = parts;
+    const parents = parentsRaw.split(' ').filter(Boolean);
+    const commitObj = {
+      hash,
+      parents,
+      tree,
+      authorName: an,
+      authorEmail: ae,
+      authorDate: ad,
+      committerName: cn,
+      committerEmail: ce,
+      committerDate: cd,
+      message: msg
+    };
+    parsedCommits.push(commitObj);
+    commitMap.set(hash.toLowerCase(), commitObj);
+  }
 
-  let firstCommit = true;
-  for (const hash of keptHashes) {
-    if (firstCommit) {
-      // Cherry-pick the first kept commit as a root commit using cherry-pick with --allow-empty
-      // We need to get the commit details and re-create it
-      const fmt = '%H%x00%an%x00%ae%x00%aI%x00%s';
-      const { stdout: info } = await runGit(['log', '-1', `--format=${fmt}`, hash], repoPath);
-      const parts = info.trim().split('\x00');
-      const [, authorName, authorEmail, authorDate, subject] = parts;
-
-      const env = {
-        GIT_AUTHOR_NAME:     authorName || 'Git User',
-        GIT_AUTHOR_EMAIL:    authorEmail || 'user@example.com',
-        GIT_AUTHOR_DATE:     authorDate,
-        GIT_COMMITTER_NAME:  authorName || 'Git User',
-        GIT_COMMITTER_EMAIL: authorEmail || 'user@example.com',
-        GIT_COMMITTER_DATE:  authorDate
-      };
-
-      await runGitWithEnv(
-        ['commit', '--allow-empty', '-m', subject || 'commit'],
-        repoPath,
-        env
-      );
-      firstCommit = false;
-    } else {
-      // Cherry-pick subsequent commits
-      // Get details for preserving author info and dates
-      const fmt = '%H%x00%an%x00%ae%x00%aI%x00%s';
-      const { stdout: info } = await runGit(['log', '-1', `--format=${fmt}`, hash], repoPath);
-      const parts = info.trim().split('\x00');
-      const [, authorName, authorEmail, authorDate, subject] = parts;
-
-      const env = {
-        GIT_AUTHOR_NAME:     authorName || 'Git User',
-        GIT_AUTHOR_EMAIL:    authorEmail || 'user@example.com',
-        GIT_AUTHOR_DATE:     authorDate,
-        GIT_COMMITTER_NAME:  authorName || 'Git User',
-        GIT_COMMITTER_EMAIL: authorEmail || 'user@example.com',
-        GIT_COMMITTER_DATE:  authorDate
-      };
-
-      await runGitWithEnv(
-        ['cherry-pick', '--allow-empty', '--allow-empty-message', '--no-commit', hash],
-        repoPath,
-        env
-      ).catch(() => {});
-
-      // Commit with original metadata
-      await runGitWithEnv(
-        ['commit', '--allow-empty', '-m', subject || 'commit'],
-        repoPath,
-        env
-      );
+  const verifiedRemovableHashes = new Set();
+  for (const hash of hashesToRemove) {
+    const c = commitMap.get(hash);
+    if (!c) continue;
+    let isEmpty = false;
+    if (c.parents.length === 0) {
+      isEmpty = (c.tree === '4b825dc642cb6eb9a060e54bf8d69288fbee4904');
+    } else if (c.parents.length === 1) {
+      const parent = commitMap.get(c.parents[0].toLowerCase());
+      isEmpty = parent ? (c.tree === parent.tree) : false;
+    }
+    if (isEmpty) {
+      verifiedRemovableHashes.add(hash);
     }
   }
 
-  // 3c. If no commits were kept, we need at least an empty state
-  // The orphan branch now has the rebuilt history (or is empty)
-
-  // 3d. Force-reset the original branch to orphan branch HEAD
-  let newHead = '';
-  try {
-    const { stdout: orphanHead } = await runGit(['rev-parse', 'HEAD'], repoPath);
-    newHead = orphanHead.trim();
-  } catch {
-    newHead = '';
+  if (verifiedRemovableHashes.size === 0) {
+    const { stdout: head } = await runGit(['rev-parse', 'HEAD'], repoPath);
+    return { removedCount: 0, keptCount: parsedCommits.length, originalHead: head.trim(), newHead: head.trim() };
   }
 
-  // Switch back to original branch and hard-reset to new history
-  await runGit(['checkout', '-B', branchName, orphanBranch], repoPath);
+  const { stdout: originalHead } = await runGit(['rev-parse', 'HEAD'], repoPath);
+  const newHashMap = new Map();
+  let oldHead = '';
+  let keptCount = 0;
 
-  // Delete the temp orphan branch
-  await runGit(['branch', '-D', orphanBranch], repoPath).catch(() => {});
+  for (const c of parsedCommits) {
+    const hashLower = c.hash.toLowerCase();
+    oldHead = c.hash;
+
+    if (verifiedRemovableHashes.has(hashLower)) {
+      // Skip this empty commit: map its hash to its resolved parent
+      const parent = c.parents[0] ? (newHashMap.get(c.parents[0].toLowerCase()) || c.parents[0]) : null;
+      newHashMap.set(hashLower, parent);
+      continue;
+    }
+
+    keptCount++;
+    const mappedParents = c.parents.map(p => newHashMap.get(p.toLowerCase()) || p);
+    const parentsUnchanged = c.parents.length === mappedParents.length &&
+      c.parents.every((p, idx) => p.toLowerCase() === (mappedParents[idx] || '').toLowerCase());
+
+    if (parentsUnchanged) {
+      newHashMap.set(hashLower, c.hash);
+    } else {
+      const parentArgs = [];
+      for (const p of mappedParents) {
+        if (p) parentArgs.push('-p', p);
+      }
+
+      const env = {
+        GIT_AUTHOR_NAME: c.authorName,
+        GIT_AUTHOR_EMAIL: c.authorEmail,
+        GIT_AUTHOR_DATE: c.authorDate,
+        GIT_COMMITTER_NAME: c.committerName,
+        GIT_COMMITTER_EMAIL: c.committerEmail,
+        GIT_COMMITTER_DATE: c.committerDate
+      };
+
+      const { stdout: newHash } = await runGitWithEnv(
+        ['commit-tree', c.tree, ...parentArgs, '-m', c.message || 'commit'],
+        repoPath,
+        env
+      );
+      newHashMap.set(hashLower, newHash.trim());
+    }
+  }
+
+  const newHead = newHashMap.get(oldHead.toLowerCase()) || originalHead.trim();
+
+  // Update the branch reference cleanly
+  await runGit(['update-ref', `refs/heads/${branchName}`, newHead], repoPath);
+
+  // Soft-reset HEAD so working directory files and unstaged edits are 100% preserved
+  await runGit(['reset', '--soft', newHead], repoPath).catch(() => {});
 
   return {
-    removedCount: hashesToRemove.size,
+    removedCount: verifiedRemovableHashes.size,
     keptCount,
     originalHead: originalHead.trim(),
     newHead
   };
+}
+
+/**
+ * Convenience method for removing empty commits within a date range.
+ * Strictly ignores any commits that contain real code changes.
+ */
+async function removeCommitsByDateRange(repoPath, startDate, endDate) {
+  const { scanCommitsWithTree } = require('./gitReader');
+  const scan = await scanCommitsWithTree(repoPath, { startDate, endDate });
+  const emptyHashes = scan.emptyCommits.map(c => c.hash);
+  return await removeEmptyCommits(repoPath, emptyHashes);
 }
 
 module.exports = {
@@ -448,5 +458,6 @@ module.exports = {
   getUnpushedCommitCount,
   resetLastCommits,
   resetTestBranch,
-  removeCommitsByDateRange
+  removeCommitsByDateRange,
+  removeEmptyCommits
 };

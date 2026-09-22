@@ -301,6 +301,109 @@ async function getLastCommitInfo(repoPath) {
   }
 }
 
+/**
+ * Scans commits on the current or specified branch, inspecting tree hashes
+ * to classify each commit as empty (0 file changes, contribution placeholder)
+ * vs real code commit (modified files).
+ * 
+ * @param {string} repoPath 
+ * @param {object} options - { startDate, endDate, branch }
+ * @returns {Promise<{ emptyCommits: Array, codeCommits: Array, totalCount: number }>}
+ */
+async function scanCommitsWithTree(repoPath, options = {}) {
+  const { startDate, endDate, branch } = options;
+  const targetBranch = branch || await getCurrentBranch(repoPath).catch(() => 'HEAD');
+
+  // Format: %H%x00%P%x00%T%x00%an%x00%ae%x00%aI%x00%s
+  const fmt = '%H%x00%P%x00%T%x00%an%x00%ae%x00%aI%x00%s';
+  const args = ['log', `--format=${fmt}`, '--reverse'];
+  if (targetBranch && targetBranch !== 'unknown') {
+    args.push(targetBranch);
+  }
+
+  const { stdout } = await runGit(args, repoPath).catch(() => ({ stdout: '' }));
+  if (!stdout || !stdout.trim()) {
+    return { emptyCommits: [], codeCommits: [], totalCount: 0 };
+  }
+
+  const lines = stdout.split('\n').map(l => l.trim()).filter(Boolean);
+  const commitMap = new Map();
+
+  // First pass: index all commits by hash
+  for (const line of lines) {
+    const parts = line.split('\x00');
+    if (parts.length < 7) continue;
+    const [hash, parentsRaw, tree, authorName, authorEmail, authorDateIso, subject] = parts;
+    const parents = parentsRaw.split(' ').filter(Boolean);
+    commitMap.set(hash, {
+      hash,
+      shortHash: hash.substring(0, 7),
+      parents,
+      tree,
+      authorName,
+      authorEmail,
+      authorDateIso,
+      dateOnly: authorDateIso ? authorDateIso.substring(0, 10) : '',
+      subject: subject ? subject.trim() : 'No commit message'
+    });
+  }
+
+  // Second pass: determine isEmpty
+  const EMPTY_TREE_HASH = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
+  const start = startDate ? new Date(startDate + 'T00:00:00') : null;
+  const end = endDate ? new Date(endDate + 'T23:59:59') : null;
+
+  const emptyCommits = [];
+  const codeCommits = [];
+
+  for (const [hash, c] of commitMap.entries()) {
+    let isEmpty = false;
+    if (c.parents.length === 0) {
+      // Root commit is empty only if its tree matches empty tree
+      isEmpty = (c.tree === EMPTY_TREE_HASH);
+    } else if (c.parents.length === 1) {
+      const parentHash = c.parents[0];
+      const parentCommit = commitMap.get(parentHash);
+      if (parentCommit) {
+        isEmpty = (c.tree === parentCommit.tree);
+      } else {
+        // Parent not in current log, query git rev-parse parent tree
+        try {
+          const { stdout: parentTree } = await runGit(['rev-parse', `${parentHash}^{tree}`], repoPath);
+          isEmpty = (c.tree === parentTree.trim());
+        } catch {
+          isEmpty = false;
+        }
+      }
+    } else {
+      // Merge commit - not considered empty contribution commit
+      isEmpty = false;
+    }
+
+    c.isEmpty = isEmpty;
+
+    // Filter by date range if provided
+    if (start && end) {
+      const commitDate = new Date(c.authorDateIso);
+      if (commitDate < start || commitDate > end) {
+        continue; // Out of range
+      }
+    }
+
+    if (isEmpty) {
+      emptyCommits.push(c);
+    } else {
+      codeCommits.push(c);
+    }
+  }
+
+  return {
+    emptyCommits,
+    codeCommits,
+    totalCount: emptyCommits.length + codeCommits.length
+  };
+}
+
 module.exports = {
   runGit,
   checkGitInstalled,
@@ -309,5 +412,6 @@ module.exports = {
   getWorkingTreeStatus,
   getRemotes,
   getTotalCommitCount,
-  getLastCommitInfo
+  getLastCommitInfo,
+  scanCommitsWithTree
 };

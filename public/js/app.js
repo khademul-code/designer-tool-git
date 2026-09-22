@@ -941,6 +941,21 @@ async function handleRemovePreview() {
 
     state.rmPreviewData = { startDate, endDate, ...data };
 
+    const btnConfirm = qs('#btn-rm-confirm');
+    const emptyCount = data.emptyCount || 0;
+    const codeCount  = data.codeCount || 0;
+
+    if (emptyCount > 0) {
+      btnConfirm.disabled = false;
+      btnConfirm.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        Yes, Remove ${emptyCount} Empty Commit${emptyCount !== 1 ? 's' : ''}
+      `;
+    } else {
+      btnConfirm.disabled = true;
+      btnConfirm.textContent = 'No Empty Commits to Remove';
+    }
+
     const details = qs('#rm-confirm-details');
     details.innerHTML = `
       <div class="detail-row">
@@ -948,24 +963,48 @@ async function handleRemovePreview() {
         <span class="detail-value">${escHtml(startDate)} → ${escHtml(endDate)}</span>
       </div>
       <div class="detail-row">
-        <span class="detail-label">Commits affected</span>
-        <span class="detail-value" style="color: ${data.affectedCount > 0 ? 'var(--danger)' : 'var(--text-muted)'}">${data.affectedCount}</span>
+        <span class="detail-label">Empty contribution commits</span>
+        <span class="detail-value" style="color: ${emptyCount > 0 ? 'var(--danger)' : 'var(--text-muted)'}">
+          <strong>${emptyCount}</strong> commit${emptyCount !== 1 ? 's' : ''} (removable)
+        </span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Real code commits</span>
+        <span class="detail-value" style="color: var(--accent, #3b82f6)">
+          🛡️ <strong>${codeCount}</strong> commit${codeCount !== 1 ? 's' : ''} (protected & preserved)
+        </span>
       </div>
       ${data.hasRemote ? `
       <div class="detail-row">
-        <span class="detail-label">⚠ Remote detected</span>
-        <span class="detail-value" style="color:var(--warning)">You will need to force-push manually after removal</span>
+        <span class="detail-label">⚠ Remote repository</span>
+        <span class="detail-value" style="color:var(--warning)">Requires manual force-push after rewrite</span>
       </div>` : ''}
-      <div class="detail-row">
-        <span class="detail-label">Action</span>
-        <span class="detail-value">Rewrite Git history (remove ${data.affectedCount} commit${data.affectedCount !== 1 ? 's' : ''})</span>
-      </div>`;
 
-    if (data.affectedCount === 0) {
-      toast('No commits found in that date range.', 'info');
-    } else {
-      show(qs('#rm-confirm-panel'));
-    }
+      ${emptyCount > 0 ? `
+      <div style="margin-top:14px;margin-bottom:6px;font-size:0.82rem;font-weight:600;color:var(--text-muted);">
+        Empty commits to be removed (${emptyCount}):
+      </div>
+      <div class="commit-list" style="max-height:160px;overflow-y:auto;">
+        ${(data.emptyCommits || []).slice(0, 50).map(c => `
+          <div class="commit-item">
+            <span class="commit-hash">${escHtml(c.shortHash)}</span>
+            <span class="commit-date">${escHtml(c.dateOnly)}</span>
+            <span class="commit-msg">${escHtml(c.subject)} <small style="color:var(--text-muted)">(${escHtml(c.authorName)})</small></span>
+          </div>
+        `).join('')}
+        ${emptyCount > 50 ? `<div style="color:var(--text-muted);padding-top:4px">…and ${emptyCount - 50} more empty commits</div>` : ''}
+      </div>` : `
+      <div style="margin-top:12px;padding:8px 12px;background:rgba(255,255,255,0.04);border-radius:4px;font-size:0.82rem;color:var(--text-muted);">
+        No empty contribution commits found in this date range.
+      </div>`}
+
+      ${codeCount > 0 ? `
+      <div style="margin-top:12px;padding:8px 12px;background:rgba(59,130,246,0.08);border-left:3px solid var(--accent,#3b82f6);border-radius:4px;font-size:0.8rem;color:var(--text-main);">
+        🛡️ <strong>Safety Guarantee:</strong> All ${codeCount} code commit(s) in this range contain real project files and will <strong>NOT</strong> be touched.
+      </div>` : ''}
+    `;
+
+    show(qs('#rm-confirm-panel'));
   } catch (err) {
     toast(err.message, 'error');
   } finally {
@@ -975,9 +1014,15 @@ async function handleRemovePreview() {
 
 async function handleRemoveConfirm() {
   if (!state.rmPreviewData) return;
-  const { startDate, endDate } = state.rmPreviewData;
+  const { startDate, endDate, emptyCommits } = state.rmPreviewData;
+  const hashes = (emptyCommits || []).map(c => c.hash);
 
-  setLoading(true, 'Rewriting Git history…');
+  if (hashes.length === 0) {
+    toast('No empty commits to remove.', 'info');
+    return;
+  }
+
+  setLoading(true, `Safely removing ${hashes.length} empty commits…`);
   hide(qs('#rm-confirm-panel'));
   const resultPanel = qs('#rm-result');
   hide(resultPanel);
@@ -985,23 +1030,27 @@ async function handleRemoveConfirm() {
   try {
     const data = await apiFetch('/api/contributions/remove', {
       method: 'POST',
-      body: JSON.stringify({ startDate, endDate, confirmed: true })
+      body: JSON.stringify({ startDate, endDate, confirmed: true, hashes })
     });
 
     resultPanel.className = 'result-panel success';
+    const currentBranch = state.gitStatus?.git?.branch || 'v2';
     resultPanel.innerHTML = `
-      <strong>✓ History rewritten</strong><br/>
-      Removed: <strong>${data.removedCount}</strong> commit(s)<br/>
-      Kept: <strong>${data.keptCount}</strong> commit(s)<br/>
+      <strong>✓ History Safely Rewritten</strong><br/>
+      Removed: <strong>${data.removedCount}</strong> empty contribution commit(s)<br/>
+      Kept & Preserved: <strong>${data.keptCount}</strong> commit(s)<br/>
       <br/>
       <span style="color:var(--text-muted)">Old HEAD: <code>${escHtml(data.originalHead?.substring(0,7) ?? '?')}</code></span><br/>
       <span style="color:var(--text-muted)">New HEAD: <code>${escHtml(data.newHead?.substring(0,7) ?? 'empty')}</code></span><br/>
       <br/>
-      <span style="color:var(--warning-dim)">⚠ If you have a remote, you must force-push manually: <code>git push origin main --force</code></span>`;
+      <span style="color:var(--accent)">✓ All real project code was 100% preserved.</span><br/>
+      <span style="color:var(--warning-dim)">⚠ If you already pushed to remote, force-push your updated branch: <code>git push origin ${escHtml(currentBranch)} --force</code></span>`;
     show(resultPanel);
 
     state.rmPreviewData = null;
-    toast(`Removed ${data.removedCount} commit(s). History rewritten.`, 'success');
+    toast(`Safely removed ${data.removedCount} empty commit(s)!`, 'success');
+    updateGitStatusBar();
+    refreshCalendar();
   } catch (err) {
     resultPanel.className   = 'result-panel error';
     resultPanel.textContent = `Error: ${err.message}`;
