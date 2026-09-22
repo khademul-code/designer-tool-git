@@ -249,21 +249,49 @@
     <!-- ---- TAB 3: CONTRIBUTION ART ---- -->
     <section id="tab-art" class="tab-section" aria-label="Contribution Art">
       <div class="tab-header">
-        <h1>Contribution Art</h1>
+        <div>
+          <h1>Contribution Art Studio</h1>
+          <p class="tab-subtitle">Design pixel-perfect GitHub contribution artwork live with your GitHub account</p>
+        </div>
+        <div class="tab-header-actions">
+          <div id="art-account-badge" class="art-account-chip">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+            <span id="art-header-user">@GitHub User</span>
+            <span class="chip-dot"></span>
+            <span id="art-header-count">0 contributions</span>
+          </div>
+
+          <div class="btn-group" role="group" aria-label="View Mode">
+            <button type="button" class="btn btn-xs active" id="btn-view-combined" title="Combined View: shows what GitHub will look like after pushing">
+              Combined (GitHub Final)
+            </button>
+            <button type="button" class="btn btn-xs" id="btn-view-art" title="Art Only: shows only the new commits to be added">
+              Art Only
+            </button>
+            <button type="button" class="btn btn-xs" id="btn-view-existing" title="Existing: shows current contributions on GitHub/local before adding art">
+              Existing Activity
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div class="art-layout">
-        <!-- Controls column -->
-        <div class="art-controls-col">
-          <div class="form-card">
-            <!-- GitHub Account & Overlay Source -->
+      <div class="art-studio-layout">
+        <!-- Controls / Inspector Sidebar -->
+        <div class="art-sidebar-col">
+          <!-- Card 1: Target Calendar & Account -->
+          <div class="form-card art-card">
+            <div class="card-section-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              GitHub Account &amp; Calendar Target
+            </div>
+
             <div class="form-group">
-              <label for="art-github-username">GitHub Username (Account Overlay)</label>
-              <div style="display: flex; gap: 8px;">
+              <label for="art-github-username">GitHub Profile (Live Overlay)</label>
+              <div class="input-with-action">
                 <input type="text" id="art-github-username" class="input-control" placeholder="e.g. khademul-menaliam" />
                 <button type="button" id="btn-art-fetch-sync" class="btn btn-secondary btn-sm" title="Fetch live contributions from GitHub profile">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                  Fetch
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                  Sync
                 </button>
               </div>
             </div>
@@ -277,49 +305,34 @@
               </select>
             </div>
 
-            <div class="form-group">
-              <label for="art-start-date">Start Date</label>
-              <input type="date" id="art-start-date" class="input-control" />
-            </div>
-
-            <div class="form-group">
-              <label>Grid Size (weeks × 7 days)</label>
-              <div class="form-row two-col">
-                <div class="form-group">
-                  <label for="art-cols" style="font-size:0.75rem;color:var(--text-muted)">Columns (weeks)</label>
+            <div class="form-row two-col">
+              <div class="form-group">
+                <label for="art-start-date">Start Date (Sunday)</label>
+                <input type="date" id="art-start-date" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label for="art-cols">Weeks</label>
+                <div style="display: flex; gap: 4px;">
                   <input type="number" id="art-cols" class="input-control" min="1" max="52" value="12" />
+                  <button type="button" id="btn-art-resize" class="btn btn-ghost btn-sm" title="Apply grid size">Apply</button>
                 </div>
-                <div></div>
               </div>
             </div>
 
-            <div class="form-group">
-              <label>Drawing Brush Mode</label>
-              <div class="btn-group" role="group" aria-label="Brush Mode" style="width: 100%; display: flex;">
-                <button type="button" class="btn active" id="btn-brush-target" style="flex: 1; text-align: center;" title="Target Level (Smart Match): Guarantees the final square on GitHub matches your painted level exactly by accounting for existing commits">
-                  🎯 Target Level
-                </button>
-                <button type="button" class="btn" id="btn-brush-additive" style="flex: 1; text-align: center;" title="Additive Mode: Directly adds the selected commits on top of existing commits">
-                  ➕ Additive (+N)
-                </button>
-              </div>
+            <div class="quick-chips-row">
+              <span class="chips-label">Quick:</span>
+              <button type="button" class="chip-btn" data-weeks="8">8w</button>
+              <button type="button" class="chip-btn active" data-weeks="12">12w</button>
+              <button type="button" class="chip-btn" data-weeks="24">24w</button>
+              <button type="button" class="chip-btn" data-weeks="52">52w (Year)</button>
             </div>
+          </div>
 
-            <div class="form-group">
-              <label>Paint Level / Commits</label>
-              <div class="intensity-picker" id="intensity-picker" role="group" aria-label="Select commit count">
-                <button class="intensity-btn" data-value="0" title="Level 0 / 0 commits (clear)">0</button>
-                <button class="intensity-btn active" data-value="1" title="Level 1 / 1 commit">1</button>
-                <button class="intensity-btn" data-value="2" title="Level 2 / 2 commits">2</button>
-                <button class="intensity-btn" data-value="3" title="Level 3 / 4 commits">3</button>
-                <button class="intensity-btn" data-value="5" title="Level 4 / 5 commits">5</button>
-                <button class="intensity-btn" data-value="7" title="Level 4+ / 7 commits">7</button>
-              </div>
-            </div>
-
-            <div class="art-tool-row">
-              <button id="btn-art-clear" class="btn btn-ghost btn-sm">Clear Art</button>
-              <button id="btn-art-resize" class="btn btn-ghost btn-sm">Apply Size</button>
+          <!-- Card 2: Git Author & Commit Info -->
+          <div class="form-card art-card">
+            <div class="card-section-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="1.05" y1="12" x2="7" y2="12"/><line x1="17.01" y1="12" x2="22.96" y2="12"/></svg>
+              Commit Configuration
             </div>
 
             <div class="form-group">
@@ -337,72 +350,174 @@
                 <input type="email" id="art-author-email" class="input-control" placeholder="your.email@example.com" />
               </div>
             </div>
-
-            <div class="form-note">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              <span>Click &amp; drag to paint. The canvas overlays your live GitHub account contributions so your design looks identical after pushing.</span>
-            </div>
           </div>
 
-          <!-- Preview/Apply buttons -->
-          <button id="btn-art-preview" class="btn btn-secondary btn-lg" disabled>
-            Preview Schedule
-          </button>
-          <button id="btn-art-apply" class="btn btn-primary btn-lg hidden" disabled>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-            Apply to Git
-          </button>
+          <!-- Card 3: Live Summary & Action Duo -->
+          <div class="form-card art-card art-action-card">
+            <div class="art-metrics-card">
+              <div class="metric-box">
+                <span class="metric-label">Existing</span>
+                <span id="art-metric-existing" class="metric-val">0</span>
+              </div>
+              <div class="metric-box highlight">
+                <span class="metric-label">Art to Add</span>
+                <span id="art-metric-new" class="metric-val">+0</span>
+              </div>
+              <div class="metric-box total">
+                <span class="metric-label">Final Total</span>
+                <span id="art-metric-total" class="metric-val">0</span>
+              </div>
+            </div>
 
-          <div id="art-preview-panel" class="result-panel hidden"></div>
-          <div id="art-result-panel" class="result-panel hidden"></div>
+            <button id="btn-art-preview" class="btn btn-secondary btn-lg btn-full" disabled>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              Preview Schedule
+            </button>
+
+            <div class="btn-duo" style="margin-top: 8px;">
+              <button id="btn-art-apply" class="btn btn-primary btn-lg" disabled>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Apply Locally
+              </button>
+              <button id="btn-art-apply-push" class="btn btn-push btn-lg" disabled title="Create art commits and push them to remote immediately">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/></svg>
+                Apply &amp; Push
+              </button>
+            </div>
+
+            <div id="art-preview-panel" class="result-panel hidden"></div>
+            <div id="art-result-panel" class="result-panel hidden"></div>
+          </div>
         </div>
 
-        <!-- Grid column -->
-        <div class="art-grid-col">
-          <!-- View mode toggle & sync status -->
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-            <div class="btn-group" role="group" aria-label="View Mode">
-              <button type="button" class="btn btn-xs active" id="btn-view-combined" title="Combined View: shows what GitHub will look like after pushing">
-                Combined (GitHub Final)
-              </button>
-              <button type="button" class="btn btn-xs" id="btn-view-art" title="Art Only: shows only the new commits to be added">
-                Art Only
-              </button>
-              <button type="button" class="btn btn-xs" id="btn-view-existing" title="Existing: shows current contributions on GitHub/local before adding art">
-                Existing Activity
-              </button>
+        <!-- Canvas Studio Workspace -->
+        <div class="art-workspace-col">
+          <!-- Top Tool Dock / Controls Bar -->
+          <div class="art-toolbar-card">
+            <!-- Brush Mode Segmented Control -->
+            <div class="toolbar-section">
+              <span class="toolbar-label">Mode</span>
+              <div class="btn-group" role="group" aria-label="Brush Mode">
+                <button type="button" class="btn active" id="btn-brush-target" title="Target Level (Smart Match): Guarantees exact visual color on GitHub profile by subtracting existing commits">
+                  🎯 Target Level
+                </button>
+                <button type="button" class="btn" id="btn-brush-additive" title="Additive (+N): Directly adds painted commits on top of existing commits">
+                  ➕ Additive (+N)
+                </button>
+              </div>
             </div>
-            <div id="art-sync-status" style="font-size: 0.75rem; color: var(--text-muted);">
-              <span>Syncing with GitHub…</span>
+
+            <!-- Intensity Color Swatches -->
+            <div class="toolbar-section">
+              <span class="toolbar-label">Shade</span>
+              <div class="palette-picker" id="intensity-picker" role="group" aria-label="Select brush intensity">
+                <button type="button" class="palette-swatch swatch-l0" data-value="0" title="Level 0 / 0 commits (Erase)">
+                  <span class="swatch-color l0"></span>
+                  <span class="swatch-text">0</span>
+                </button>
+                <button type="button" class="palette-swatch swatch-l1 active" data-value="1" title="Level 1 / 1 commit (Light)">
+                  <span class="swatch-color l1"></span>
+                  <span class="swatch-text">1</span>
+                </button>
+                <button type="button" class="palette-swatch swatch-l2" data-value="2" title="Level 2 / 2 commits (Medium)">
+                  <span class="swatch-color l2"></span>
+                  <span class="swatch-text">2</span>
+                </button>
+                <button type="button" class="palette-swatch swatch-l3" data-value="3" title="Level 3 / 4 commits (High)">
+                  <span class="swatch-color l3"></span>
+                  <span class="swatch-text">3</span>
+                </button>
+                <button type="button" class="palette-swatch swatch-l4" data-value="5" title="Level 4 / 5 commits (Vivid)">
+                  <span class="swatch-color l4"></span>
+                  <span class="swatch-text">4</span>
+                </button>
+                <button type="button" class="palette-swatch swatch-l5" data-value="7" title="Level 4+ / 7 commits (Peak)">
+                  <span class="swatch-color l4 plus"></span>
+                  <span class="swatch-text">7+</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Creative Presets -->
+            <div class="toolbar-section">
+              <span class="toolbar-label">Presets</span>
+              <div class="art-presets-group">
+                <button type="button" class="btn-preset" data-preset="heart" title="Draw pixel Heart">❤️ Heart</button>
+                <button type="button" class="btn-preset" data-preset="smile" title="Draw Smile">😊 Smile</button>
+                <button type="button" class="btn-preset" data-preset="star" title="Draw Star">⭐ Star</button>
+                <button type="button" class="btn-preset" data-preset="wave" title="Draw Wave Pattern">〰️ Wave</button>
+                <button type="button" class="btn-preset" data-preset="checker" title="Draw Checkerboard">🏁 Checker</button>
+                <button type="button" class="btn-preset" data-preset="hi" title="Draw HI">👋 HI</button>
+              </div>
+            </div>
+
+            <!-- Quick Canvas Utilities -->
+            <div class="toolbar-section right-tools">
+              <div class="art-canvas-tools">
+                <button type="button" id="btn-art-invert" class="btn btn-ghost btn-xs" title="Invert current art selection">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20z"/></svg>
+                  Invert
+                </button>
+                <button type="button" id="btn-art-clear" class="btn btn-ghost btn-xs" title="Clear painted art additions">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                  Clear
+                </button>
+                <div class="zoom-picker">
+                  <span class="zoom-label">Size:</span>
+                  <button type="button" class="zoom-btn" data-size="13" title="Compact (13px)">S</button>
+                  <button type="button" class="zoom-btn active" data-size="16" title="Standard (16px)">M</button>
+                  <button type="button" class="zoom-btn" data-size="20" title="Comfortable (20px)">L</button>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- Month header labels directly aligned to week columns -->
-          <div id="art-month-labels" class="art-month-labels"></div>
-
-          <!-- Canvas wrapper with left-side weekdays -->
-          <div class="art-canvas-wrap">
-            <div class="art-weekday-labels" id="art-weekday-labels">
-              <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+          <!-- Dedicated Artboard Card -->
+          <div class="art-board-card">
+            <!-- Sync & Info status bar -->
+            <div class="art-board-status-bar">
+              <div id="art-sync-status" class="art-sync-status">
+                <span class="status-indicator"></span>
+                <span class="status-msg">Syncing with GitHub…</span>
+              </div>
+              <div class="art-board-hint">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                <span>Click &amp; drag to paint on the calendar grid</span>
+              </div>
             </div>
-            <div class="art-grid-scroll">
-              <div class="art-grid" id="art-grid" role="grid" aria-label="Contribution art canvas"></div>
-            </div>
-          </div>
 
-          <div class="art-grid-legend">
-            <div class="calendar-legend">
-              <span class="legend-label">Less</span>
-              <span class="legend-cell l0"></span>
-              <span class="legend-cell l1"></span>
-              <span class="legend-cell l2"></span>
-              <span class="legend-cell l3"></span>
-              <span class="legend-cell l4"></span>
-              <span class="legend-label">More</span>
-              <span style="margin-left: 12px; font-size: 0.7rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 4px;">
-                <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #38bdf8;"></span>
-                Cyan dot = Existing commits
-              </span>
+            <!-- Month headers aligned to week columns -->
+            <div class="art-canvas-outer-wrap">
+              <div id="art-month-labels" class="art-month-labels"></div>
+
+              <!-- Canvas wrapper with left weekdays -->
+              <div class="art-canvas-wrap">
+                <div class="art-weekday-labels" id="art-weekday-labels">
+                  <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                </div>
+                <div class="art-grid-scroll" id="art-grid-scroll">
+                  <div class="art-grid size-m" id="art-grid" role="grid" aria-label="Contribution art canvas"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Legend & Notes -->
+            <div class="art-grid-footer">
+              <div class="art-grid-legend">
+                <div class="calendar-legend">
+                  <span class="legend-label">Less</span>
+                  <span class="legend-cell l0"></span>
+                  <span class="legend-cell l1"></span>
+                  <span class="legend-cell l2"></span>
+                  <span class="legend-cell l3"></span>
+                  <span class="legend-cell l4"></span>
+                  <span class="legend-label">More</span>
+                  <span class="existing-indicator-note">
+                    <span class="cyan-badge-dot"></span>
+                    Cyan dot = Existing GitHub activity
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

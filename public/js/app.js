@@ -27,6 +27,7 @@ const state = {
   artBrushValue:  1,
   artBrushMode:   'target',   // 'target' | 'additive'
   artViewMode:    'combined', // 'combined' | 'art' | 'existing'
+  artZoom:        'm',        // 's' | 'm' | 'l'
   artIsPainting:  false,
   rmPreviewData:  null
 };
@@ -91,13 +92,23 @@ async function apiFetch(url, opts = {}) {
 const NAV_TABS = ['contribution', 'random', 'art', 'remove', 'settings'];
 
 function switchTab(tabId) {
+  if (!NAV_TABS.includes(tabId)) tabId = 'contribution';
+
   NAV_TABS.forEach(id => {
     const tab = qs(`#tab-${id}`);
     const btn = qs(`#nav-${id}`);
-    // Use the .active CSS class for tab visibility (not .hidden)
     if (tab) tab.classList.toggle('active', id === tabId);
     if (btn) btn.classList.toggle('active', id === tabId);
   });
+
+  // Remember active tab across reloads & update URL hash
+  try {
+    localStorage.setItem('designer_tool_active_tab', tabId);
+    if (window.location.hash !== `#${tabId}`) {
+      history.replaceState(null, '', `#${tabId}`);
+    }
+  } catch (e) {}
+
   if (tabId === 'contribution') refreshCalendar();
   if (tabId === 'art') {
     syncArtGridFromRemote();
@@ -112,6 +123,19 @@ function initNav() {
     const btn = qs(`#nav-${id}`);
     if (btn) btn.addEventListener('click', () => switchTab(id));
   });
+
+  // Listen to hash changes (e.g. browser back/forward)
+  window.addEventListener('hashchange', () => {
+    const hash = window.location.hash.replace('#', '');
+    if (NAV_TABS.includes(hash)) switchTab(hash);
+  });
+
+  // Restore active tab so page reload never gets kicked back to contribution tab
+  const hash = window.location.hash.replace('#', '');
+  let savedTab = '';
+  try { savedTab = localStorage.getItem('designer_tool_active_tab'); } catch (e) {}
+  const targetTab = NAV_TABS.includes(hash) ? hash : (NAV_TABS.includes(savedTab) ? savedTab : 'contribution');
+  switchTab(targetTab);
 }
 
 /* ===================================================
@@ -740,7 +764,7 @@ async function handleRandom(pushAfter = false) {
 }
 
 /* ===================================================
-   FEATURE 3 — CONTRIBUTION ART
+   FEATURE 3 — CONTRIBUTION ART STUDIO
    =================================================== */
 function initArt() {
   const today = todayStr();
@@ -762,10 +786,10 @@ function initArt() {
     artGhUser.value = state.settings.githubUsername || state.settings.detectedGithubUser;
   }
 
-  // Intensity picker
-  qsa('.intensity-btn').forEach(btn => {
+  // Palette swatches picker
+  qsa('.palette-swatch').forEach(btn => {
     btn.addEventListener('click', () => {
-      qsa('.intensity-btn').forEach(b => b.classList.remove('active'));
+      qsa('.palette-swatch').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.artBrushValue = parseInt(btn.dataset.value, 10);
     });
@@ -811,6 +835,47 @@ function initArt() {
     }
   });
 
+  // Quick Weeks Chips
+  qsa('.quick-chips-row .chip-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      qsa('.quick-chips-row .chip-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const weeks = parseInt(btn.dataset.weeks, 10);
+      const colsInput = qs('#art-cols');
+      if (colsInput) colsInput.value = weeks;
+      state.artCols = weeks;
+      syncArtGridFromRemote();
+    });
+  });
+
+  // Creative Presets
+  qsa('.btn-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      applyArtPreset(btn.dataset.preset);
+    });
+  });
+
+  // Canvas Invert & Clear
+  const btnInvert = qs('#btn-art-invert');
+  if (btnInvert) btnInvert.addEventListener('click', () => applyArtPreset('invert'));
+  const btnClear = qs('#btn-art-clear');
+  if (btnClear) btnClear.addEventListener('click', clearArtGrid);
+
+  // Zoom / Scale Selector
+  qsa('.zoom-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      qsa('.zoom-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const sizeCode = btn.dataset.size === '13' ? 's' : btn.dataset.size === '20' ? 'l' : 'm';
+      state.artZoom = sizeCode;
+      const grid = qs('#art-grid');
+      if (grid) {
+        grid.className = `art-grid size-${sizeCode}`;
+      }
+      renderArtMonthLabels();
+    });
+  });
+
   // Fetch / Sync button
   const btnFetchSync = qs('#btn-art-fetch-sync');
   if (btnFetchSync) btnFetchSync.addEventListener('click', syncArtGridFromRemote);
@@ -822,18 +887,30 @@ function initArt() {
   // Start date change
   if (startDateInput) startDateInput.addEventListener('change', syncArtGridFromRemote);
 
-  // Toolbar actions
-  qs('#btn-art-clear').addEventListener('click', clearArtGrid);
-  qs('#btn-art-resize').addEventListener('click', () => {
-    const cols = parseInt(qs('#art-cols').value, 10);
-    if (cols >= 1 && cols <= 52) {
-      state.artCols = cols;
-      syncArtGridFromRemote();
-    }
-  });
+  // Resize button
+  const btnResize = qs('#btn-art-resize');
+  if (btnResize) {
+    btnResize.addEventListener('click', () => {
+      const cols = parseInt(qs('#art-cols').value, 10);
+      if (cols >= 1 && cols <= 52) {
+        state.artCols = cols;
+        // Update quick chips active state if matching
+        qsa('.quick-chips-row .chip-btn').forEach(b => {
+          b.classList.toggle('active', parseInt(b.dataset.weeks, 10) === cols);
+        });
+        syncArtGridFromRemote();
+      }
+    });
+  }
 
+  // Action Duo
   qs('#btn-art-preview').addEventListener('click', handleArtPreview);
-  qs('#btn-art-apply').addEventListener('click', handleArtApply);
+  qs('#btn-art-apply').addEventListener('click', () => handleArtApply(false));
+  const btnApplyPush = qs('#btn-art-apply-push');
+  if (btnApplyPush) btnApplyPush.addEventListener('click', () => handleArtApply(true));
+
+  // Try to restore previous in-progress art from session
+  restoreArtState();
 
   // Initial load
   syncArtGridFromRemote();
@@ -867,15 +944,23 @@ async function syncArtGridFromRemote() {
     state.artDays = data.weeks || [];
     state.artMonthLabels = data.monthLabels || [];
 
+    const activeCount = state.artDays.flat().filter(d => d.existingCount > 0).length;
+    const totalEx = state.artDays.flat().reduce((s, d) => s + (d.existingCount || 0), 0);
+
+    // Update Header Account Badge
+    const headerUser = qs('#art-header-user');
+    const headerCount = qs('#art-header-count');
+    if (headerUser) headerUser.textContent = `@${data.githubUsername || username || 'GitHub'}`;
+    if (headerCount) headerCount.textContent = `${totalEx.toLocaleString()} contribution${totalEx !== 1 ? 's' : ''}`;
+
     if (statusEl) {
-      const activeCount = state.artDays.flat().filter(d => d.existingCount > 0).length;
-      const totalEx = state.artDays.flat().reduce((s, d) => s + (d.existingCount || 0), 0);
       statusEl.innerHTML = `<span style="color:var(--accent)">✓ ${source === 'github' ? `@${data.githubUsername || 'GitHub'}` : 'Git'}: ${totalEx} existing contributions (${activeCount} active days)</span>`;
     }
 
     recalculateArtGrid();
     renderArtMonthLabels();
     renderArtGrid();
+    updateLiveMetrics();
   } catch (err) {
     if (statusEl) {
       statusEl.innerHTML = `<span style="color:var(--danger)">✗ ${err.message}</span>`;
@@ -883,6 +968,7 @@ async function syncArtGridFromRemote() {
     buildFallbackArtDays(startDate, weeks);
     renderArtMonthLabels();
     renderArtGrid();
+    updateLiveMetrics();
   }
 }
 
@@ -967,6 +1053,8 @@ function recalculateArtGrid() {
       }
     }
   }
+
+  updateLiveMetrics();
 }
 
 function renderArtMonthLabels() {
@@ -974,10 +1062,11 @@ function renderArtMonthLabels() {
   if (!mount) return;
   mount.innerHTML = '';
 
+  const pitch = state.artZoom === 's' ? 16 : state.artZoom === 'l' ? 24 : 19;
   const labels = state.artMonthLabels || [];
   let lastX = -50;
   labels.forEach(m => {
-    const x = m.colIndex * 16; // 13px cell + 3px gap = 16px
+    const x = m.colIndex * pitch;
     if (x - lastX >= 32) {
       const span = document.createElement('span');
       span.className = 'art-month-label';
@@ -993,6 +1082,7 @@ function renderArtGrid() {
   const gridEl = qs('#art-grid');
   if (!gridEl) return;
   gridEl.innerHTML = '';
+  gridEl.className = `art-grid size-${state.artZoom || 'm'}`;
   gridEl.style.gridTemplateColumns = `repeat(${state.artCols}, var(--cell-size))`;
 
   const ROWS = 7;
@@ -1039,12 +1129,12 @@ function renderArtGrid() {
       gridEl.appendChild(cell);
     }
   }
+
+  updateLiveMetrics();
 }
 
-function paintCell(r, c) {
+function setCellArt(r, c, brushVal) {
   const dayObj = state.artDays[c]?.[r];
-  const brushVal = state.artBrushValue;
-
   if (state.artBrushMode === 'target') {
     state.artTargetGrid[r][c] = brushVal;
     const existing = dayObj?.existingCount || 0;
@@ -1060,8 +1150,13 @@ function paintCell(r, c) {
     state.artTargetGrid[r][c] = null;
     state.artGrid[r][c] = brushVal;
   }
+}
 
+function paintCell(r, c) {
+  setCellArt(r, c, state.artBrushValue);
   updateCellDOM(r, c);
+  updateLiveMetrics();
+  saveArtState();
 }
 
 function updateCellDOM(r, c) {
@@ -1116,15 +1211,171 @@ function showArtTooltip(cell, r, c) {
   tooltip.style.top = `${rect.top + window.scrollY - 75}px`;
 }
 
+function applyArtPreset(presetName) {
+  const ROWS = 7;
+  const cols = state.artCols;
+  const centerCol = Math.floor(cols / 2);
+  const brushVal = state.artBrushValue || 2;
+
+  if (presetName === 'clear') {
+    clearArtGrid();
+    return;
+  }
+
+  if (presetName === 'invert') {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < cols; c++) {
+        const cur = state.artGrid[r][c];
+        setCellArt(r, c, cur > 0 ? 0 : brushVal);
+      }
+    }
+    renderArtGrid();
+    saveArtState();
+    toast('Inverted canvas art additions.', 'info');
+    return;
+  }
+
+  let pattern = null;
+  if (presetName === 'heart') {
+    pattern = [
+      [0, 1, 1, 0, 1, 1, 0],
+      [1, 2, 2, 1, 2, 2, 1],
+      [1, 3, 3, 3, 3, 3, 1],
+      [1, 3, 3, 3, 3, 3, 1],
+      [0, 1, 3, 3, 3, 1, 0],
+      [0, 0, 1, 3, 1, 0, 0],
+      [0, 0, 0, 1, 0, 0, 0]
+    ];
+  } else if (presetName === 'smile') {
+    pattern = [
+      [0, 0, 0, 0, 0, 0, 0],
+      [0, 3, 0, 0, 0, 3, 0],
+      [0, 3, 0, 0, 0, 3, 0],
+      [0, 0, 0, 0, 0, 0, 0],
+      [1, 0, 0, 0, 0, 0, 1],
+      [0, 2, 3, 3, 3, 2, 0],
+      [0, 0, 0, 0, 0, 0, 0]
+    ];
+  } else if (presetName === 'star') {
+    pattern = [
+      [0, 0, 0, 3, 0, 0, 0],
+      [0, 0, 2, 3, 2, 0, 0],
+      [2, 3, 3, 3, 3, 3, 2],
+      [0, 2, 3, 3, 3, 2, 0],
+      [0, 0, 3, 0, 3, 0, 0],
+      [0, 2, 0, 0, 0, 2, 0],
+      [0, 0, 0, 0, 0, 0, 0]
+    ];
+  } else if (presetName === 'hi') {
+    pattern = [
+      [2, 0, 2, 0, 2],
+      [2, 0, 2, 0, 0],
+      [2, 2, 2, 0, 2],
+      [2, 0, 2, 0, 2],
+      [2, 0, 2, 0, 2],
+      [2, 0, 2, 0, 2],
+      [0, 0, 0, 0, 0]
+    ];
+  } else if (presetName === 'wave') {
+    for (let c = 0; c < cols; c++) {
+      const r = Math.max(0, Math.min(6, Math.round(3 + 2.5 * Math.sin((c / cols) * Math.PI * 3))));
+      setCellArt(r, c, 3);
+      if (r + 1 < 7) setCellArt(r + 1, c, 2);
+    }
+    renderArtGrid();
+    saveArtState();
+    toast('Applied wave pattern.', 'success');
+    return;
+  } else if (presetName === 'checker') {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < cols; c++) {
+        setCellArt(r, c, (r + c) % 2 === 0 ? brushVal : 0);
+      }
+    }
+    renderArtGrid();
+    saveArtState();
+    toast('Applied checkerboard pattern.', 'success');
+    return;
+  }
+
+  if (pattern) {
+    const patCols = pattern[0].length;
+    const startC = Math.max(0, centerCol - Math.floor(patCols / 2));
+    for (let r = 0; r < 7; r++) {
+      for (let pc = 0; pc < patCols; pc++) {
+        const c = startC + pc;
+        if (c < cols) {
+          const val = pattern[r][pc];
+          if (val > 0) {
+            setCellArt(r, c, val);
+          }
+        }
+      }
+    }
+    renderArtGrid();
+    saveArtState();
+    toast(`Applied "${presetName}" preset!`, 'success');
+  }
+}
+
+function updateLiveMetrics() {
+  const existingEl = qs('#art-metric-existing');
+  const newEl      = qs('#art-metric-new');
+  const totalEl    = qs('#art-metric-total');
+
+  let totalExisting = 0;
+  let totalNew = 0;
+
+  if (state.artDays && state.artDays.length > 0) {
+    state.artDays.flat().forEach(d => {
+      totalExisting += d.existingCount || 0;
+    });
+  }
+
+  if (state.artGrid && state.artGrid.length > 0) {
+    state.artGrid.flat().forEach(c => {
+      totalNew += c || 0;
+    });
+  }
+
+  if (existingEl) existingEl.textContent = totalExisting.toLocaleString();
+  if (newEl)      newEl.textContent = (totalNew > 0 ? '+' : '') + totalNew.toLocaleString();
+  if (totalEl)    totalEl.textContent = (totalExisting + totalNew).toLocaleString();
+
+  const btnPreview = qs('#btn-art-preview');
+  const btnApply   = qs('#btn-art-apply');
+  const btnApplyPush = qs('#btn-art-apply-push');
+
+  if (btnPreview) btnPreview.disabled = !state.isConnected;
+  if (btnApply)   btnApply.disabled   = (totalNew === 0 || !state.isConnected);
+  if (btnApplyPush) btnApplyPush.disabled = (totalNew === 0 || !state.isConnected);
+}
+
+function saveArtState() {
+  try {
+    sessionStorage.setItem('designer_art_grid', JSON.stringify(state.artGrid));
+    sessionStorage.setItem('designer_art_target', JSON.stringify(state.artTargetGrid));
+  } catch (e) {}
+}
+
+function restoreArtState() {
+  try {
+    const g = sessionStorage.getItem('designer_art_grid');
+    const tg = sessionStorage.getItem('designer_art_target');
+    if (g) state.artGrid = JSON.parse(g);
+    if (tg) state.artTargetGrid = JSON.parse(tg);
+  } catch (e) {}
+}
+
 function clearArtGrid() {
   const ROWS = 7;
   const cols = state.artCols;
   state.artGrid = Array.from({ length: ROWS }, () => Array(cols).fill(0));
   state.artTargetGrid = Array.from({ length: ROWS }, () => Array(cols).fill(null));
+  saveArtState();
   renderArtGrid();
   hide(qs('#art-preview-panel'));
   hide(qs('#art-result-panel'));
-  hide(qs('#btn-art-apply'));
   toast('Art additions cleared. Existing contributions remain visible.', 'info');
 }
 
@@ -1176,11 +1427,8 @@ async function handleArtPreview() {
       </div>`;
     show(previewPanel);
 
-    if (totalNewCommits > 0) {
-      show(qs('#btn-art-apply'));
-      qs('#btn-art-apply').disabled = false;
-    } else {
-      hide(qs('#btn-art-apply'));
+    updateLiveMetrics();
+    if (totalNewCommits === 0) {
       toast('The current artwork requires 0 new commits (existing commits already satisfy the design!).', 'info');
     }
   } catch (err) {
@@ -1191,14 +1439,14 @@ async function handleArtPreview() {
   }
 }
 
-async function handleArtApply() {
+async function handleArtApply(pushAfter = false) {
   const startDate   = qs('#art-start-date').value;
   const message     = qs('#art-message').value.trim() || 'Git pattern commit';
   const authorName  = qs('#art-author-name')?.value?.trim();
   const authorEmail = qs('#art-author-email')?.value?.trim();
   if (!startDate) { toast('Please select a start date.', 'error'); return; }
 
-  setLoading(true, 'Creating art commits in local repository…');
+  setLoading(true, pushAfter ? 'Creating commits & pushing to GitHub…' : 'Creating art commits in local repository…');
   const resultPanel = qs('#art-result-panel');
   hide(resultPanel);
 
@@ -1215,9 +1463,20 @@ async function handleArtApply() {
       })
     });
 
+    let pushMsg = '';
+    if (pushAfter) {
+      try {
+        setLoading(true, 'Pushing art commits to remote GitHub repository…');
+        await apiFetch('/api/git/push', { method: 'POST', body: JSON.stringify({}) });
+        pushMsg = '<br/><span style="color:var(--accent)">✓ Pushed to remote GitHub repository successfully!</span>';
+      } catch (pushErr) {
+        pushMsg = `<br/><span style="color:var(--warning)">⚠ Commits created locally but push failed: ${escHtml(pushErr.message)}</span>`;
+      }
+    }
+
     resultPanel.className = 'result-panel success';
     resultPanel.innerHTML = `
-      <strong>✓ ${data.createdCount} real commits created locally</strong><br/>
+      <strong>✓ ${data.createdCount} real commits created locally</strong>${pushMsg}<br/>
       ${data.message}<br/>
       <div class="commit-list">
         ${(data.commits || []).slice(0, 20).map(c =>
@@ -1230,7 +1489,11 @@ async function handleArtApply() {
         ${data.commits?.length > 20 ? `<div style="color:var(--text-muted)">…and ${data.commits.length - 20} more</div>` : ''}
       </div>`;
     show(resultPanel);
-    toast(`Art applied! ${data.createdCount} commits created. Push them to remote to update GitHub!`, 'success');
+
+    const toastMsg = pushAfter
+      ? `Art applied! ${data.createdCount} commits created and pushed to GitHub!`
+      : `Art applied! ${data.createdCount} commits created locally.`;
+    toast(toastMsg, 'success');
 
     // Re-sync with status bar & update local grid
     updateGitStatusBar();
