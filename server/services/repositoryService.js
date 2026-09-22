@@ -13,11 +13,11 @@ const SETTINGS_PATH = path.join(__dirname, '../../data/settings.json');
 
 const DEFAULT_SETTINGS = {
   repositoryPath: '',
-  defaultCommitMessage: 'Git learning commit',
+  defaultCommitMessage: 'Git contribution commit',
   defaultBranch: 'main',
   remoteName: 'origin',
-  authorName: 'Khademul Islam',
-  authorEmail: 'khademul375islam@gmail.com'
+  authorName: '',
+  authorEmail: ''
 };
 
 /**
@@ -26,6 +26,27 @@ const DEFAULT_SETTINGS = {
 function getSettings() {
   const settings = readJsonFile(SETTINGS_PATH, DEFAULT_SETTINGS);
   return { ...DEFAULT_SETTINGS, ...settings };
+}
+
+/**
+ * Returns settings with fallback to local Git user.name and user.email if unset.
+ */
+async function getEffectiveSettings(repoPath) {
+  const settings = getSettings();
+  const targetPath = repoPath || (settings.repositoryPath ? settings.repositoryPath.trim() : '');
+  let gitUser = { name: '', email: '' };
+  try {
+    gitUser = await gitReader.getGitUserConfig(targetPath);
+  } catch (e) {
+    // Ignore error
+  }
+
+  return {
+    ...settings,
+    authorName: settings.authorName || gitUser.name || '',
+    authorEmail: settings.authorEmail || gitUser.email || '',
+    gitUser
+  };
 }
 
 /**
@@ -86,17 +107,30 @@ async function getFullRepositoryStatus() {
   const settings = getSettings();
   const repoPath = settings.repositoryPath ? settings.repositoryPath.trim() : '';
 
+  let gitUser = { name: '', email: '' };
+  try {
+    gitUser = await gitReader.getGitUserConfig(repoPath);
+  } catch (e) {
+    // Ignore error
+  }
+
+  const effectiveAuthorName = settings.authorName || gitUser.name || '';
+  const effectiveAuthorEmail = settings.authorEmail || gitUser.email || '';
+
   const statusReport = {
     gitInstalled: gitCheck.installed,
     gitVersion: gitCheck.version,
     gitError: gitCheck.error || null,
+    gitUser,
     settings: {
       repositoryPath: repoPath,
       defaultCommitMessage: settings.defaultCommitMessage,
       defaultBranch: settings.defaultBranch,
       remoteName: settings.remoteName,
-      authorName: settings.authorName,
-      authorEmail: settings.authorEmail
+      authorName: effectiveAuthorName,
+      authorEmail: effectiveAuthorEmail,
+      rawAuthorName: settings.authorName,
+      rawAuthorEmail: settings.authorEmail
     },
     validation: {
       isConfigured: Boolean(repoPath),
@@ -185,6 +219,7 @@ async function getFullRepositoryStatus() {
 
 module.exports = {
   getSettings,
+  getEffectiveSettings,
   updateSettings,
   validatePath,
   getBranches,

@@ -70,6 +70,10 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
         Remove Contributions
       </button>
+      <button class="nav-btn" id="nav-settings" data-tab="settings">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
     </nav>
 
     <div class="sidebar-footer">
@@ -193,16 +197,16 @@
         </div>
         <div class="form-group">
           <label for="rand-message">Commit Message</label>
-          <input type="text" id="rand-message" class="input-control" placeholder="Git learning commit" />
+          <input type="text" id="rand-message" class="input-control" placeholder="Git contribution commit" />
         </div>
         <div class="form-row two-col">
           <div class="form-group">
             <label for="rand-author-name">Author Name</label>
-            <input type="text" id="rand-author-name" class="input-control" placeholder="Khademul Islam" />
+            <input type="text" id="rand-author-name" class="input-control" placeholder="Your Name" />
           </div>
           <div class="form-group">
             <label for="rand-author-email">Author Email</label>
-            <input type="email" id="rand-author-email" class="input-control" placeholder="khademul375islam@gmail.com" />
+            <input type="email" id="rand-author-email" class="input-control" placeholder="your.email@example.com" />
           </div>
         </div>
 
@@ -293,11 +297,11 @@
             <div class="form-row two-col">
               <div class="form-group">
                 <label for="art-author-name">Author Name</label>
-                <input type="text" id="art-author-name" class="input-control" placeholder="Khademul Islam" />
+                <input type="text" id="art-author-name" class="input-control" placeholder="Your Name" />
               </div>
               <div class="form-group">
                 <label for="art-author-email">Author Email</label>
-                <input type="email" id="art-author-email" class="input-control" placeholder="khademul375islam@gmail.com" />
+                <input type="email" id="art-author-email" class="input-control" placeholder="your.email@example.com" />
               </div>
             </div>
 
@@ -391,6 +395,73 @@
       </div>
 
       <div id="rm-result" class="result-panel hidden"></div>
+    </section>
+
+    <!-- ---- TAB 5: SETTINGS ---- -->
+    <section id="tab-settings" class="tab-section" aria-label="Settings">
+      <div class="tab-header">
+        <h1>Settings</h1>
+      </div>
+
+      <div class="form-card">
+        <h3 style="margin-bottom: 0.5rem; font-size: 1.05rem; color: var(--text-primary); font-weight: 600;">
+          Git Author Identity
+        </h3>
+        <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.25rem; line-height: 1.5;">
+          Set your Git author name and email. These credentials will take effect across the entire tool (Random Contributions, Contribution Art, and manual commits) so GitHub correctly credits commits to your profile.
+        </p>
+
+        <div class="form-row two-col">
+          <div class="form-group">
+            <label for="settings-author-name">Author Name</label>
+            <input type="text" id="settings-author-name" class="input-control" placeholder="Your Name" />
+          </div>
+          <div class="form-group">
+            <label for="settings-author-email">Author Email</label>
+            <input type="email" id="settings-author-email" class="input-control" placeholder="your.email@example.com" />
+          </div>
+        </div>
+
+        <div style="margin-bottom: 1.5rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+          <button type="button" id="btn-detect-git-author" class="btn btn-ghost btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            Auto-Detect from Local Git Config
+          </button>
+          <span id="detected-git-author-hint" style="font-size: 0.825rem; color: var(--text-muted);"></span>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid var(--border); margin: 1.5rem 0;" />
+
+        <h3 style="margin-bottom: 0.5rem; font-size: 1.05rem; color: var(--text-primary); font-weight: 600;">
+          Repository &amp; Remote Defaults
+        </h3>
+        <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.25rem; line-height: 1.5;">
+          Configure default commit preferences and remote publishing settings.
+        </p>
+
+        <div class="form-row two-col">
+          <div class="form-group">
+            <label for="settings-default-branch">Default Target Branch</label>
+            <input type="text" id="settings-default-branch" class="input-control" placeholder="v2" />
+          </div>
+          <div class="form-group">
+            <label for="settings-remote-name">Remote Name</label>
+            <input type="text" id="settings-remote-name" class="input-control" placeholder="origin" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="settings-default-message">Default Commit Message</label>
+          <input type="text" id="settings-default-message" class="input-control" placeholder="Git contribution commit" />
+        </div>
+
+        <div style="margin-top: 1.75rem;">
+          <button id="btn-save-settings" class="btn btn-primary btn-lg">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Save Settings
+          </button>
+        </div>
+      </div>
     </section>
 
   </main>

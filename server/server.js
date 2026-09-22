@@ -27,6 +27,33 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
 /**
+ * Resolves author identity dynamically:
+ * 1. Payload explicitly provided (from form input)
+ * 2. Settings configured by user in settings.json
+ * 3. Local/global Git config (git config user.name / user.email)
+ * 4. Generic fallback ('Git Contributor' / 'contributor@example.com')
+ */
+async function resolveAuthorIdentity(repoPath, requestedName, requestedEmail, settings) {
+  let name = (requestedName || settings?.authorName || '').trim();
+  let email = (requestedEmail || settings?.authorEmail || '').trim();
+
+  if (!name || !email) {
+    try {
+      const gitUser = await gitReader.getGitUserConfig(repoPath);
+      if (!name && gitUser.name) name = gitUser.name;
+      if (!email && gitUser.email) email = gitUser.email;
+    } catch (e) {
+      // Ignore error
+    }
+  }
+
+  if (!name) name = 'Git Contributor';
+  if (!email) email = 'contributor@example.com';
+
+  return { name, email };
+}
+
+/**
  * Helper to ensure target repository is configured and valid before Git actions.
  */
 async function getValidatedRepoPath() {
@@ -57,10 +84,26 @@ app.get('/api/git/check', async (req, res) => {
   }
 });
 
-app.get('/api/repository/settings', (req, res) => {
+app.get('/api/repository/settings', async (req, res) => {
   try {
     const settings = repositoryService.getSettings();
-    res.json({ success: true, settings });
+    const effective = await repositoryService.getEffectiveSettings();
+    res.json({
+      success: true,
+      settings: effective,
+      rawSettings: settings
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/repository/git-author', async (req, res) => {
+  try {
+    const settings = repositoryService.getSettings();
+    const repoPath = settings.repositoryPath ? settings.repositoryPath.trim() : '';
+    const gitUser = await gitReader.getGitUserConfig(repoPath);
+    res.json({ success: true, gitUser });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -217,9 +260,13 @@ app.post('/api/contributions/random', async (req, res) => {
       return res.status(400).json({ success: false, error: 'maxCommits cannot exceed 20 per day for safety.' });
     }
 
-    const finalAuthorName = (authorName || settings.authorName || 'Khademul Islam').trim();
-    const finalAuthorEmail = (authorEmail || settings.authorEmail || 'khademul375islam@gmail.com').trim();
-    const finalMessage = (message || settings.defaultCommitMessage || 'Git learning commit').trim();
+    const { name: finalAuthorName, email: finalAuthorEmail } = await resolveAuthorIdentity(
+      repoPath,
+      authorName,
+      authorEmail,
+      settings
+    );
+    const finalMessage = (message || settings.defaultCommitMessage || 'Git contribution commit').trim();
 
     // Build a commit plan: for each date in range, random count
     const commitPlan = [];
@@ -363,9 +410,13 @@ app.post('/api/commits/preview', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Single batch limit is 100 commits in Commit Lab.' });
     }
 
-    const finalAuthorName = (authorName || settings.authorName || 'Khademul Islam').trim();
-    const finalAuthorEmail = (authorEmail || settings.authorEmail || 'khademul375islam@gmail.com').trim();
-    const finalMessage = (message || settings.defaultCommitMessage || 'Git learning commit').trim();
+    const { name: finalAuthorName, email: finalAuthorEmail } = await resolveAuthorIdentity(
+      repoPath,
+      authorName,
+      authorEmail,
+      settings
+    );
+    const finalMessage = (message || settings.defaultCommitMessage || 'Git contribution commit').trim();
 
     const sampleDate = `${date}T${time}:00`;
 
@@ -397,9 +448,13 @@ app.post('/api/commits/create', async (req, res) => {
     }
 
     const commitCount = Math.max(1, parseInt(count, 10) || 1);
-    const finalAuthorName = (authorName || settings.authorName || 'Khademul Islam').trim();
-    const finalAuthorEmail = (authorEmail || settings.authorEmail || 'khademul375islam@gmail.com').trim();
-    const finalMessage = (message || settings.defaultCommitMessage || 'Git learning commit').trim();
+    const { name: finalAuthorName, email: finalAuthorEmail } = await resolveAuthorIdentity(
+      repoPath,
+      authorName,
+      authorEmail,
+      settings
+    );
+    const finalMessage = (message || settings.defaultCommitMessage || 'Git contribution commit').trim();
 
     const plan = [{
       date,
@@ -586,8 +641,12 @@ app.post('/api/designs/apply-locally', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Grid has 0 commits to create.' });
     }
 
-    const finalAuthorName = (authorName || settings.authorName || 'Khademul Islam').trim();
-    const finalAuthorEmail = (authorEmail || settings.authorEmail || 'khademul375islam@gmail.com').trim();
+    const { name: finalAuthorName, email: finalAuthorEmail } = await resolveAuthorIdentity(
+      repoPath,
+      authorName,
+      authorEmail,
+      settings
+    );
     const finalMessage = (message || settings.defaultCommitMessage || 'Git pattern commit').trim();
 
     // Map schedule into commitPlan items

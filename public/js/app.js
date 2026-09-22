@@ -83,7 +83,7 @@ async function apiFetch(url, opts = {}) {
 /* ===================================================
    NAVIGATION
    =================================================== */
-const NAV_TABS = ['contribution', 'random', 'art', 'remove'];
+const NAV_TABS = ['contribution', 'random', 'art', 'remove', 'settings'];
 
 function switchTab(tabId) {
   NAV_TABS.forEach(id => {
@@ -97,6 +97,9 @@ function switchTab(tabId) {
   if (tabId === 'art') {
     // Ensure art grid is built when switching to art tab
     if (!qs('#art-grid')?.children.length) buildArtGrid();
+  }
+  if (tabId === 'settings' && state.settings) {
+    populateAuthorAndSettingsInputs(state.settings);
   }
 }
 
@@ -182,6 +185,40 @@ function initRepository() {
   loadSavedRepo();
 }
 
+function populateAuthorAndSettingsInputs(settings) {
+  if (!settings) return;
+  const authorName = settings.authorName || '';
+  const authorEmail = settings.authorEmail || '';
+
+  // Random Tab
+  const randName = qs('#rand-author-name');
+  if (randName) randName.value = authorName;
+  const randEmail = qs('#rand-author-email');
+  if (randEmail) randEmail.value = authorEmail;
+  const randMsg = qs('#rand-message');
+  if (randMsg && !randMsg.value && settings.defaultCommitMessage) randMsg.value = settings.defaultCommitMessage;
+
+  // Art Tab
+  const artName = qs('#art-author-name');
+  if (artName) artName.value = authorName;
+  const artEmail = qs('#art-author-email');
+  if (artEmail) artEmail.value = authorEmail;
+  const artMsg = qs('#art-message');
+  if (artMsg && !artMsg.value && settings.defaultCommitMessage) artMsg.value = settings.defaultCommitMessage;
+
+  // Settings Tab
+  const setAuthor = qs('#settings-author-name');
+  if (setAuthor) setAuthor.value = authorName;
+  const setEmail = qs('#settings-author-email');
+  if (setEmail) setEmail.value = authorEmail;
+  const setBranch = qs('#settings-default-branch');
+  if (setBranch) setBranch.value = settings.defaultBranch || 'main';
+  const setRemote = qs('#settings-remote-name');
+  if (setRemote) setRemote.value = settings.remoteName || 'origin';
+  const setMsg = qs('#settings-default-message');
+  if (setMsg) setMsg.value = settings.defaultCommitMessage || 'Git contribution commit';
+}
+
 async function loadSavedRepo() {
   try {
     const data = await apiFetch('/api/repository/settings');
@@ -192,19 +229,7 @@ async function loadSavedRepo() {
       // Auto-validate
       qs('#btn-connect-repo').click();
     }
-    // Populate dynamic author inputs
-    if (data.settings?.authorName) {
-      const randName = qs('#rand-author-name');
-      if (randName && !randName.value) randName.value = data.settings.authorName;
-      const artName = qs('#art-author-name');
-      if (artName && !artName.value) artName.value = data.settings.authorName;
-    }
-    if (data.settings?.authorEmail) {
-      const randEmail = qs('#rand-author-email');
-      if (randEmail && !randEmail.value) randEmail.value = data.settings.authorEmail;
-      const artEmail = qs('#art-author-email');
-      if (artEmail && !artEmail.value) artEmail.value = data.settings.authorEmail;
-    }
+    populateAuthorAndSettingsInputs(data.settings);
   } catch (e) {
     // No saved settings yet — that's fine
   }
@@ -1104,12 +1129,77 @@ document.addEventListener('keydown', e => {
       case '2': switchTab('random');       e.preventDefault(); break;
       case '3': switchTab('art');          e.preventDefault(); break;
       case '4': switchTab('remove');       e.preventDefault(); break;
+      case '5': switchTab('settings');     e.preventDefault(); break;
     }
   }
 });
 
 // Art grid: stop painting on mouseup anywhere
 document.addEventListener('mouseup', () => { state.artIsPainting = false; });
+
+/* ===================================================
+   SETTINGS TAB
+   =================================================== */
+function initSettings() {
+  const btnSave = qs('#btn-save-settings');
+  const btnDetect = qs('#btn-detect-git-author');
+  const hint = qs('#detected-git-author-hint');
+
+  if (btnDetect) {
+    btnDetect.addEventListener('click', async () => {
+      try {
+        setLoading(true, 'Reading Git config…');
+        const data = await apiFetch('/api/repository/git-author');
+        if (data.gitUser?.name || data.gitUser?.email) {
+          if (data.gitUser.name) qs('#settings-author-name').value = data.gitUser.name;
+          if (data.gitUser.email) qs('#settings-author-email').value = data.gitUser.email;
+          if (hint) hint.textContent = `✓ Detected: ${data.gitUser.name || 'No name'} <${data.gitUser.email || 'No email'}>`;
+          toast('Detected author identity from local Git configuration!', 'success');
+        } else {
+          if (hint) hint.textContent = 'No user.name or user.email found in Git config.';
+          toast('No author configured in local or global Git config.', 'info');
+        }
+      } catch (err) {
+        toast('Failed to read Git config: ' + err.message, 'error');
+      } finally {
+        setLoading(false);
+      }
+    });
+  }
+
+  if (btnSave) {
+    btnSave.addEventListener('click', async () => {
+      const authorName = qs('#settings-author-name')?.value?.trim() || '';
+      const authorEmail = qs('#settings-author-email')?.value?.trim() || '';
+      const defaultBranch = qs('#settings-default-branch')?.value?.trim() || '';
+      const remoteName = qs('#settings-remote-name')?.value?.trim() || '';
+      const defaultCommitMessage = qs('#settings-default-message')?.value?.trim() || '';
+
+      setLoading(true, 'Saving settings…');
+      try {
+        const data = await apiFetch('/api/repository/settings', {
+          method: 'POST',
+          body: JSON.stringify({
+            authorName,
+            authorEmail,
+            defaultBranch,
+            remoteName,
+            defaultCommitMessage
+          })
+        });
+
+        state.settings = data.settings;
+        populateAuthorAndSettingsInputs(data.settings);
+        toast('Settings saved successfully! Author details updated across all tools.', 'success');
+        updateGitStatusBar();
+      } catch (err) {
+        toast('Failed to save settings: ' + err.message, 'error');
+      } finally {
+        setLoading(false);
+      }
+    });
+  }
+}
 
 /* ===================================================
    INIT
@@ -1121,4 +1211,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initRandom();
   initArt();
   initRemove();
+  initSettings();
 });

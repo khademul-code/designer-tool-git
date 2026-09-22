@@ -111,9 +111,9 @@ const RepoManager = {
     if (pathInput) pathInput.value = settings.repositoryPath || '';
     if (branchInput) branchInput.value = settings.defaultBranch || 'main';
     if (remoteInput) remoteInput.value = settings.remoteName || 'origin';
-    if (authorInput) authorInput.value = settings.authorName || 'Git Learner';
-    if (emailInput) emailInput.value = settings.authorEmail || 'learner@example.com';
-    if (msgInput) msgInput.value = settings.defaultCommitMessage || 'Git learning commit';
+    if (authorInput) authorInput.value = settings.authorName || '';
+    if (emailInput) emailInput.value = settings.authorEmail || '';
+    if (msgInput) msgInput.value = settings.defaultCommitMessage || 'Git contribution commit';
   },
 
   /**

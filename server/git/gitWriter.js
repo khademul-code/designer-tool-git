@@ -49,13 +49,13 @@ function runGitWithEnv(args, cwd = process.cwd(), customEnv = {}) {
 async function createSingleCommit(repoPath, commitDetails) {
   const {
     dateIso, // e.g. "2026-09-15T14:30:00+06:00" or "2026-09-15 14:30:00"
-    message = 'Git learning commit',
-    authorName = 'Git Learner',
-    authorEmail = 'learner@example.com'
+    message = 'Git contribution commit',
+    authorName = 'Git Contributor',
+    authorEmail = 'contributor@example.com'
   } = commitDetails;
 
-  const trimmedName = (authorName || 'Git Learner').trim();
-  const trimmedEmail = (authorEmail || 'learner@example.com').trim();
+  const trimmedName = (authorName || 'Git Contributor').trim();
+  const trimmedEmail = (authorEmail || 'contributor@example.com').trim();
   const authorString = `${trimmedName} <${trimmedEmail}>`;
 
   // Synchronize both Author and Committer identities and dates so GitHub displays a single unified contributor
@@ -119,9 +119,9 @@ async function createBatchCommits(repoPath, commitPlan) {
 
     const baseDate = item.date; // e.g. "2026-09-15"
     const baseTime = item.time || '12:00:00';
-    const message = item.message || 'Git learning commit';
-    const authorName = item.authorName || 'Git Learner';
-    const authorEmail = item.authorEmail || 'learner@example.com';
+    const message = item.message || 'Git contribution commit';
+    const authorName = item.authorName || 'Git Contributor';
+    const authorEmail = item.authorEmail || 'contributor@example.com';
 
     for (let i = 0; i < count; i++) {
       // Stagger timestamps by minutes/seconds if multiple commits on same day

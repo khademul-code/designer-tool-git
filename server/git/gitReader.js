@@ -404,6 +404,34 @@ async function scanCommitsWithTree(repoPath, options = {}) {
   };
 }
 
+/**
+ * Reads user.name and user.email configured in the repository or globally in Git.
+ * 
+ * @param {string} [repoPath] 
+ * @returns {Promise<{ name: string, email: string }>}
+ */
+async function getGitUserConfig(repoPath) {
+  const cwd = repoPath || process.cwd();
+  let name = '';
+  let email = '';
+
+  try {
+    const { stdout } = await runGit(['config', 'user.name'], cwd);
+    name = stdout ? stdout.trim() : '';
+  } catch (err) {
+    // Unset or error
+  }
+
+  try {
+    const { stdout } = await runGit(['config', 'user.email'], cwd);
+    email = stdout ? stdout.trim() : '';
+  } catch (err) {
+    // Unset or error
+  }
+
+  return { name, email };
+}
+
 module.exports = {
   runGit,
   checkGitInstalled,
@@ -413,5 +441,6 @@ module.exports = {
   getRemotes,
   getTotalCommitCount,
   getLastCommitInfo,
-  scanCommitsWithTree
+  scanCommitsWithTree,
+  getGitUserConfig
 };
