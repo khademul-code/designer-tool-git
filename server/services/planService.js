@@ -55,7 +55,7 @@ function createPlan(planData) {
     source: planData.source || 'designer',
     message: planData.message || 'Git learning commit',
     authorName: planData.authorName || 'Khademul Islam',
-    authorEmail: planData.authorEmail || 'khadimulmanaliam@gmail.com',
+    authorEmail: planData.authorEmail || 'khademul375islam@gmail.com',
     schedule,
     totalDays: schedule.length,
     totalCommits,

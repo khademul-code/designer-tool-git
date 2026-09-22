@@ -17,7 +17,7 @@ const DEFAULT_SETTINGS = {
   defaultBranch: 'main',
   remoteName: 'origin',
   authorName: 'Khademul Islam',
-  authorEmail: 'khadimulmanaliam@gmail.com'
+  authorEmail: 'khademul375islam@gmail.com'
 };
 
 /**

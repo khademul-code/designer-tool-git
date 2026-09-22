@@ -218,7 +218,7 @@ app.post('/api/contributions/random', async (req, res) => {
     }
 
     const finalAuthorName = (authorName || settings.authorName || 'Khademul Islam').trim();
-    const finalAuthorEmail = (authorEmail || settings.authorEmail || 'khadimulmanaliam@gmail.com').trim();
+    const finalAuthorEmail = (authorEmail || settings.authorEmail || 'khademul375islam@gmail.com').trim();
     const finalMessage = (message || settings.defaultCommitMessage || 'Git learning commit').trim();
 
     // Build a commit plan: for each date in range, random count
@@ -364,7 +364,7 @@ app.post('/api/commits/preview', async (req, res) => {
     }
 
     const finalAuthorName = (authorName || settings.authorName || 'Khademul Islam').trim();
-    const finalAuthorEmail = (authorEmail || settings.authorEmail || 'khadimulmanaliam@gmail.com').trim();
+    const finalAuthorEmail = (authorEmail || settings.authorEmail || 'khademul375islam@gmail.com').trim();
     const finalMessage = (message || settings.defaultCommitMessage || 'Git learning commit').trim();
 
     const sampleDate = `${date}T${time}:00`;
@@ -398,7 +398,7 @@ app.post('/api/commits/create', async (req, res) => {
 
     const commitCount = Math.max(1, parseInt(count, 10) || 1);
     const finalAuthorName = (authorName || settings.authorName || 'Khademul Islam').trim();
-    const finalAuthorEmail = (authorEmail || settings.authorEmail || 'khadimulmanaliam@gmail.com').trim();
+    const finalAuthorEmail = (authorEmail || settings.authorEmail || 'khademul375islam@gmail.com').trim();
     const finalMessage = (message || settings.defaultCommitMessage || 'Git learning commit').trim();
 
     const plan = [{
@@ -587,7 +587,7 @@ app.post('/api/designs/apply-locally', async (req, res) => {
     }
 
     const finalAuthorName = (authorName || settings.authorName || 'Khademul Islam').trim();
-    const finalAuthorEmail = (authorEmail || settings.authorEmail || 'khadimulmanaliam@gmail.com').trim();
+    const finalAuthorEmail = (authorEmail || settings.authorEmail || 'khademul375islam@gmail.com').trim();
     const finalMessage = (message || settings.defaultCommitMessage || 'Git pattern commit').trim();
 
     // Map schedule into commitPlan items
