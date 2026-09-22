@@ -54,11 +54,17 @@ async function createSingleCommit(repoPath, commitDetails) {
     authorEmail = 'learner@example.com'
   } = commitDetails;
 
-  const authorString = `${authorName.trim()} <${authorEmail.trim()}>`;
+  const trimmedName = (authorName || 'Git Learner').trim();
+  const trimmedEmail = (authorEmail || 'learner@example.com').trim();
+  const authorString = `${trimmedName} <${trimmedEmail}>`;
 
-  // Provide both author and committer environment overrides for realistic timestamping
+  // Synchronize both Author and Committer identities and dates so GitHub displays a single unified contributor
   const envOverrides = {
+    GIT_AUTHOR_NAME: trimmedName,
+    GIT_AUTHOR_EMAIL: trimmedEmail,
     GIT_AUTHOR_DATE: dateIso,
+    GIT_COMMITTER_NAME: trimmedName,
+    GIT_COMMITTER_EMAIL: trimmedEmail,
     GIT_COMMITTER_DATE: dateIso
   };
 
