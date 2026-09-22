@@ -188,6 +188,11 @@ function convertGridToSchedule(grid, startDateString) {
     throw new Error('Invalid start date provided.');
   }
 
+  // Snap start date to Sunday so row 0 is Sunday, row 1 is Monday... matching GitHub
+  const startSun = new Date(startDate);
+  const day = startSun.getDay();
+  startSun.setDate(startSun.getDate() - day);
+
   const rows = grid.length; // usually 7 (Sun-Sat)
   const cols = grid[0].length; // number of weeks/columns
 
@@ -195,7 +200,7 @@ function convertGridToSchedule(grid, startDateString) {
   let totalCommits = 0;
   let activeDays = 0;
 
-  let currentDate = new Date(startDate);
+  let currentDate = new Date(startSun);
 
   // Traverse column by column (week by week), then row 0..6 (days of week)
   for (let c = 0; c < cols; c++) {

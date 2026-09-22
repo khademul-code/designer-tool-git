@@ -18,6 +18,7 @@ const repositoryService = require('./services/repositoryService');
 const contributionService = require('./services/contributionService');
 const designService = require('./services/designService');
 const planService = require('./services/planService');
+const githubService = require('./services/githubService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -111,7 +112,7 @@ app.get('/api/repository/git-author', async (req, res) => {
 
 app.post('/api/repository/settings', async (req, res) => {
   try {
-    const { repositoryPath, defaultCommitMessage, defaultBranch, remoteName, authorName, authorEmail } = req.body;
+    const { repositoryPath, defaultCommitMessage, defaultBranch, remoteName, authorName, authorEmail, githubUsername } = req.body;
 
     const updated = repositoryService.updateSettings({
       ...(repositoryPath !== undefined && { repositoryPath: repositoryPath.trim() }),
@@ -119,7 +120,8 @@ app.post('/api/repository/settings', async (req, res) => {
       ...(defaultBranch !== undefined && { defaultBranch: defaultBranch.trim() }),
       ...(remoteName !== undefined && { remoteName: remoteName.trim() }),
       ...(authorName !== undefined && { authorName: authorName.trim() }),
-      ...(authorEmail !== undefined && { authorEmail: authorEmail.trim() })
+      ...(authorEmail !== undefined && { authorEmail: authorEmail.trim() }),
+      ...(githubUsername !== undefined && { githubUsername: githubUsername.trim() })
     });
 
     const status = await repositoryService.getFullRepositoryStatus();
@@ -216,6 +218,59 @@ app.get('/api/contributions', async (req, res) => {
 
     const calendar = await contributionService.getContributionCalendar(repoPath, year ? parseInt(year, 10) : null);
     res.json({ success: true, calendar });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * GET /api/contributions/github
+ * Fetches live contribution calendar for a GitHub account (across all repositories).
+ */
+app.get('/api/contributions/github', async (req, res) => {
+  try {
+    const settings = await repositoryService.getEffectiveSettings();
+    const username = (req.query.username || settings.githubUsername || '').trim();
+    const year = req.query.year ? parseInt(req.query.year, 10) : null;
+
+    if (!username) {
+      return res.status(400).json({ success: false, error: 'GitHub username is required.' });
+    }
+
+    const data = await githubService.fetchGithubUserContributions(username, year);
+    res.json({ success: true, ...data });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * GET /api/contributions/art-grid
+ * Returns an aligned week-by-week grid for the Art canvas with existing commits
+ * from GitHub account, local repository, or both.
+ */
+app.get('/api/contributions/art-grid', async (req, res) => {
+  try {
+    const settings = await repositoryService.getEffectiveSettings();
+    const repoPath = settings.repositoryPath || '';
+    const {
+      startDate,
+      weeks = 12,
+      source = 'github',
+      username
+    } = req.query;
+
+    const githubUsername = (username || settings.githubUsername || '').trim();
+
+    const gridData = await contributionService.getAlignedGrid({
+      repoPath,
+      startDate,
+      weeks: parseInt(weeks, 10) || 12,
+      source,
+      githubUsername
+    });
+
+    res.json({ success: true, ...gridData });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
   }

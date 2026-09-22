@@ -620,7 +620,31 @@ input, select { font-family: inherit; }
   padding-right: 4px;
 }
 
-.art-grid-scroll { overflow-x: auto; }
+.art-month-labels {
+  position: relative;
+  height: 18px;
+  margin-bottom: 6px;
+  margin-left: 28px;
+  min-width: max-content;
+}
+
+.art-month-label {
+  position: absolute;
+  top: 0;
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.art-canvas-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.art-grid-scroll { overflow-x: auto; padding-bottom: 6px; }
 
 .art-grid {
   display: grid;
@@ -633,23 +657,84 @@ input, select { font-family: inherit; }
 }
 
 .art-cell {
+  position: relative;
   width: var(--cell-size);
   height: var(--cell-size);
   border-radius: 2px;
   background: var(--c0);
   border: 1px solid var(--border-light);
-  transition: background 0.08s;
+  transition: background 0.08s, transform 0.08s;
   cursor: crosshair;
 }
 
-.art-cell:hover { opacity: 0.8; }
+.art-cell:hover {
+  opacity: 0.85;
+  transform: scale(1.15);
+  z-index: 10;
+}
+
 .art-cell.l0 { background: var(--c0); }
 .art-cell.l1 { background: var(--c1); }
 .art-cell.l2 { background: var(--c2); }
 .art-cell.l3 { background: var(--c3); }
 .art-cell.l4 { background: var(--c4); }
 
+/* Subtle indicator for cells that already have commits in GitHub */
+.art-cell.has-existing::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+
+.art-cell.has-art {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
 .art-grid-legend { margin-top: 12px; clear: both; }
+
+/* Button Group */
+.btn-group {
+  display: inline-flex;
+  background: var(--bg-card, #1e293b);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+
+.btn-group .btn {
+  border-radius: 4px;
+  border: none;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-group .btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btn-group .btn.active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 500;
+}
+
+.btn-xs {
+  font-size: 0.72rem !important;
+  padding: 3px 7px !important;
+}
 
 /* Intensity picker */
 .intensity-picker {

@@ -131,10 +131,13 @@ async function getCommitHistory(repoPath, options = {}) {
  * @param {number|string} year 
  * @returns {Promise<object>} Map of `YYYY-MM-DD` => count
  */
-async function getDailyCommitCounts(repoPath, year = null) {
+async function getDailyCommitCounts(repoPath, year = null, startDate = null, endDate = null) {
   try {
     const args = ['log', '--format=%aI'];
-    if (year) {
+    if (startDate && endDate) {
+      args.push(`--since=${startDate} 00:00:00`);
+      args.push(`--until=${endDate} 23:59:59`);
+    } else if (year) {
       args.push(`--since=${year}-01-01 00:00:00`);
       args.push(`--until=${year}-12-31 23:59:59`);
     }

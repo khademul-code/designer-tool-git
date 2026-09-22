@@ -138,7 +138,157 @@ async function getContributionCalendar(repoPath, year = null) {
   };
 }
 
+const githubService = require('./githubService');
+
+/**
+ * Builds an aligned week-by-week contribution grid for the Art canvas.
+ * Guaranteed to start on Sunday (Row 0 = Sun, Row 6 = Sat).
+ * 
+ * @param {object} options
+ * @param {string} [options.repoPath] - Local Git repository path
+ * @param {string} options.startDate - e.g. "2026-08-01"
+ * @param {number} [options.weeks=12] - Number of week columns (1 to 52)
+ * @param {string} [options.source='github'] - 'github' | 'local' | 'both'
+ * @param {string} [options.githubUsername] - GitHub username
+ * @returns {Promise<object>} Aligned grid data
+ */
+async function getAlignedGrid(options = {}) {
+  const {
+    repoPath = '',
+    startDate,
+    weeks: rawWeeks = 12,
+    source = 'github',
+    githubUsername = ''
+  } = options;
+
+  const numWeeks = Math.max(1, Math.min(52, parseInt(rawWeeks, 10) || 12));
+  const baseDate = startDate ? new Date(startDate + 'T00:00:00') : new Date();
+  
+  // Snap to Sunday of that week
+  const startSun = new Date(baseDate);
+  const dayOfWeek = startSun.getDay();
+  startSun.setDate(startSun.getDate() - dayOfWeek);
+
+  const endSat = new Date(startSun);
+  endSat.setDate(endSat.getDate() + (numWeeks * 7) - 1);
+
+  const startYear = startSun.getFullYear();
+  const endYear = endSat.getFullYear();
+
+  // 1. Fetch GitHub data if requested and username is provided
+  let githubDays = {};
+  if ((source === 'github' || source === 'both') && githubUsername) {
+    try {
+      const res1 = await githubService.fetchGithubUserContributions(githubUsername, startYear);
+      Object.assign(githubDays, res1.days || {});
+
+      if (endYear !== startYear) {
+        const res2 = await githubService.fetchGithubUserContributions(githubUsername, endYear);
+        Object.assign(githubDays, res2.days || {});
+      }
+    } catch (err) {
+      console.warn(`[getAlignedGrid] GitHub fetch warning for ${githubUsername}:`, err.message);
+    }
+  }
+
+  // 2. Fetch local Git commits if requested
+  let localCounts = {};
+  if ((source === 'local' || source === 'both') && repoPath) {
+    try {
+      const y1 = startSun.toISOString().substring(0, 10);
+      const y2 = endSat.toISOString().substring(0, 10);
+      localCounts = await getDailyCommitCounts(repoPath, null, y1, y2);
+    } catch (err) {
+      console.warn('[getAlignedGrid] Local git history warning:', err.message);
+    }
+  }
+
+  // 3. Build weeks and columns
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthLabels = [];
+  const recordedMonths = new Set();
+
+  const gridWeeks = [];
+  let currentDate = new Date(startSun);
+
+  for (let c = 0; c < numWeeks; c++) {
+    const weekDays = [];
+    for (let r = 0; r < 7; r++) {
+      const y = currentDate.getFullYear();
+      const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const d = String(currentDate.getDate()).padStart(2, '0');
+      const dateKey = `${y}-${m}-${d}`;
+
+      const ghItem = githubDays[dateKey] || null;
+      const ghCount = ghItem ? ghItem.count : 0;
+      const ghLevel = ghItem ? ghItem.level : getIntensityLevel(ghCount);
+
+      const locCount = localCounts[dateKey] || 0;
+      const locLevel = getIntensityLevel(locCount);
+
+      let existingCount = 0;
+      let existingLevel = 0;
+
+      if (source === 'github') {
+        existingCount = ghCount;
+        existingLevel = ghLevel;
+      } else if (source === 'local') {
+        existingCount = locCount;
+        existingLevel = locLevel;
+      } else {
+        // 'both': combined
+        existingCount = Math.max(ghCount, locCount);
+        existingLevel = Math.max(ghLevel, locLevel);
+      }
+
+      const dayObj = {
+        date: dateKey,
+        col: c,
+        row: r,
+        dayOfWeek: r,
+        dayOfMonth: currentDate.getDate(),
+        month: currentDate.getMonth(),
+        year: currentDate.getFullYear(),
+        existingCount,
+        existingLevel,
+        githubCount: ghCount,
+        localCount: locCount,
+        tooltip: ghItem?.tooltip || `${existingCount} contribution(s) on ${dateKey}`
+      };
+
+      weekDays.push(dayObj);
+
+      // Month label detection (placed at top of column)
+      if (r === 0 || dayObj.dayOfMonth === 1) {
+        const monthKey = `${dayObj.year}-${dayObj.month}`;
+        if (!recordedMonths.has(monthKey)) {
+          monthLabels.push({
+            colIndex: c,
+            label: monthNames[dayObj.month]
+          });
+          recordedMonths.add(monthKey);
+        }
+      }
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    gridWeeks.push(weekDays);
+  }
+
+  return {
+    source,
+    githubUsername,
+    startDate: startSun.toISOString().substring(0, 10),
+    endDate: endSat.toISOString().substring(0, 10),
+    weeksCount: numWeeks,
+    weeks: gridWeeks,
+    monthLabels,
+    weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  };
+}
+
 module.exports = {
   getIntensityLevel,
-  getContributionCalendar
+  getContributionCalendar,
+  getAlignedGrid
 };

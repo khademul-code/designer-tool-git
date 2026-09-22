@@ -16,14 +16,19 @@
    STATE
    =================================================== */
 const state = {
-  repoPath:      '',
-  isConnected:   false,
-  calendarYear:  new Date().getFullYear(),
-  artGrid:       [],   // 7 rows × N cols, each cell = commit count (number)
-  artCols:       12,
-  artBrushValue: 1,
-  artIsPainting: false,
-  rmPreviewData: null  // data from /api/contributions/remove preview
+  repoPath:       '',
+  isConnected:    false,
+  calendarYear:   new Date().getFullYear(),
+  artGrid:        [],   // 7 rows × N cols: new commits to create
+  artTargetGrid:  [],   // 7 rows × N cols: target painted values
+  artDays:        [],   // N cols array of day objects
+  artMonthLabels: [],
+  artCols:        12,
+  artBrushValue:  1,
+  artBrushMode:   'target',   // 'target' | 'additive'
+  artViewMode:    'combined', // 'combined' | 'art' | 'existing'
+  artIsPainting:  false,
+  rmPreviewData:  null
 };
 
 /* ===================================================
@@ -95,8 +100,7 @@ function switchTab(tabId) {
   });
   if (tabId === 'contribution') refreshCalendar();
   if (tabId === 'art') {
-    // Ensure art grid is built when switching to art tab
-    if (!qs('#art-grid')?.children.length) buildArtGrid();
+    syncArtGridFromRemote();
   }
   if (tabId === 'settings' && state.settings) {
     populateAuthorAndSettingsInputs(state.settings);
@@ -189,6 +193,7 @@ function populateAuthorAndSettingsInputs(settings) {
   if (!settings) return;
   const authorName = settings.authorName || '';
   const authorEmail = settings.authorEmail || '';
+  const ghUser = settings.githubUsername || settings.detectedGithubUser || '';
 
   // Random Tab
   const randName = qs('#rand-author-name');
@@ -205,12 +210,16 @@ function populateAuthorAndSettingsInputs(settings) {
   if (artEmail) artEmail.value = authorEmail;
   const artMsg = qs('#art-message');
   if (artMsg && !artMsg.value && settings.defaultCommitMessage) artMsg.value = settings.defaultCommitMessage;
+  const artGhUser = qs('#art-github-username');
+  if (artGhUser && !artGhUser.value && ghUser) artGhUser.value = ghUser;
 
   // Settings Tab
   const setAuthor = qs('#settings-author-name');
   if (setAuthor) setAuthor.value = authorName;
   const setEmail = qs('#settings-author-email');
   if (setEmail) setEmail.value = authorEmail;
+  const setGhUser = qs('#settings-github-username');
+  if (setGhUser) setGhUser.value = ghUser;
   const setBranch = qs('#settings-default-branch');
   if (setBranch) setBranch.value = settings.defaultBranch || 'main';
   const setRemote = qs('#settings-remote-name');
@@ -737,7 +746,21 @@ function initArt() {
   const today = todayStr();
   qs('#art-start-date').value = today;
 
-  buildArtGrid();
+  // Default start date (Sunday 11 weeks ago)
+  const startDateInput = qs('#art-start-date');
+  if (startDateInput && !startDateInput.value) {
+    const d = new Date();
+    d.setDate(d.getDate() - (state.artCols - 1) * 7);
+    const day = d.getDay();
+    d.setDate(d.getDate() - day);
+    startDateInput.value = d.toISOString().substring(0, 10);
+  }
+
+  // Pre-fill GitHub username if available
+  const artGhUser = qs('#art-github-username');
+  if (artGhUser && !artGhUser.value && (state.settings?.githubUsername || state.settings?.detectedGithubUser)) {
+    artGhUser.value = state.settings.githubUsername || state.settings.detectedGithubUser;
+  }
 
   // Intensity picker
   qsa('.intensity-btn').forEach(btn => {
@@ -748,87 +771,361 @@ function initArt() {
     });
   });
 
-  // Toolbar
+  // Brush Mode (Target Level vs Additive)
+  const btnBrushTarget = qs('#btn-brush-target');
+  const btnBrushAdditive = qs('#btn-brush-additive');
+  if (btnBrushTarget && btnBrushAdditive) {
+    btnBrushTarget.addEventListener('click', () => {
+      state.artBrushMode = 'target';
+      btnBrushTarget.classList.add('active');
+      btnBrushAdditive.classList.remove('active');
+      recalculateArtGrid();
+      renderArtGrid();
+      toast('Brush mode: Target Level (Smart Match) — auto-accounts for existing commits.', 'info');
+    });
+    btnBrushAdditive.addEventListener('click', () => {
+      state.artBrushMode = 'additive';
+      btnBrushAdditive.classList.add('active');
+      btnBrushTarget.classList.remove('active');
+      recalculateArtGrid();
+      renderArtGrid();
+      toast('Brush mode: Additive (+N) — directly adds painted commits.', 'info');
+    });
+  }
+
+  // View Mode (Combined vs Art vs Existing)
+  const viewBtns = [
+    { id: 'btn-view-combined', mode: 'combined' },
+    { id: 'btn-view-art', mode: 'art' },
+    { id: 'btn-view-existing', mode: 'existing' }
+  ];
+  viewBtns.forEach(({ id, mode }) => {
+    const b = qs(`#${id}`);
+    if (b) {
+      b.addEventListener('click', () => {
+        viewBtns.forEach(vb => qs(`#${vb.id}`)?.classList.remove('active'));
+        b.classList.add('active');
+        state.artViewMode = mode;
+        renderArtGrid();
+      });
+    }
+  });
+
+  // Fetch / Sync button
+  const btnFetchSync = qs('#btn-art-fetch-sync');
+  if (btnFetchSync) btnFetchSync.addEventListener('click', syncArtGridFromRemote);
+
+  // Source selector change
+  const sourceSel = qs('#art-source-select');
+  if (sourceSel) sourceSel.addEventListener('change', syncArtGridFromRemote);
+
+  // Start date change
+  if (startDateInput) startDateInput.addEventListener('change', syncArtGridFromRemote);
+
+  // Toolbar actions
   qs('#btn-art-clear').addEventListener('click', clearArtGrid);
   qs('#btn-art-resize').addEventListener('click', () => {
     const cols = parseInt(qs('#art-cols').value, 10);
     if (cols >= 1 && cols <= 52) {
       state.artCols = cols;
-      buildArtGrid();
+      syncArtGridFromRemote();
     }
   });
 
   qs('#btn-art-preview').addEventListener('click', handleArtPreview);
   qs('#btn-art-apply').addEventListener('click', handleArtApply);
+
+  // Initial load
+  syncArtGridFromRemote();
 }
 
-function buildArtGrid() {
+async function syncArtGridFromRemote() {
+  const startDateInput = qs('#art-start-date');
+  let startDate = startDateInput?.value;
+  if (!startDate) {
+    const d = new Date();
+    d.setDate(d.getDate() - (state.artCols - 1) * 7);
+    const day = d.getDay();
+    d.setDate(d.getDate() - day);
+    startDate = d.toISOString().substring(0, 10);
+    if (startDateInput) startDateInput.value = startDate;
+  }
+
+  const username = qs('#art-github-username')?.value?.trim() || state.settings?.githubUsername || state.settings?.detectedGithubUser || '';
+  const source = qs('#art-source-select')?.value || 'github';
+  const weeks = state.artCols;
+
+  const statusEl = qs('#art-sync-status');
+  if (statusEl) {
+    statusEl.innerHTML = `<span style="color:var(--text-muted)">⏳ Fetching ${source === 'github' ? (username ? `@${username}` : 'GitHub') : source} activity…</span>`;
+  }
+
+  try {
+    const url = `/api/contributions/art-grid?startDate=${startDate}&weeks=${weeks}&source=${source}&username=${encodeURIComponent(username)}`;
+    const data = await apiFetch(url);
+
+    state.artDays = data.weeks || [];
+    state.artMonthLabels = data.monthLabels || [];
+
+    if (statusEl) {
+      const activeCount = state.artDays.flat().filter(d => d.existingCount > 0).length;
+      const totalEx = state.artDays.flat().reduce((s, d) => s + (d.existingCount || 0), 0);
+      statusEl.innerHTML = `<span style="color:var(--accent)">✓ ${source === 'github' ? `@${data.githubUsername || 'GitHub'}` : 'Git'}: ${totalEx} existing contributions (${activeCount} active days)</span>`;
+    }
+
+    recalculateArtGrid();
+    renderArtMonthLabels();
+    renderArtGrid();
+  } catch (err) {
+    if (statusEl) {
+      statusEl.innerHTML = `<span style="color:var(--danger)">✗ ${err.message}</span>`;
+    }
+    buildFallbackArtDays(startDate, weeks);
+    renderArtMonthLabels();
+    renderArtGrid();
+  }
+}
+
+function buildFallbackArtDays(startDateStr, weeks) {
+  const baseDate = new Date(startDateStr + 'T00:00:00');
+  const startSun = new Date(baseDate);
+  const day = startSun.getDay();
+  startSun.setDate(startSun.getDate() - day);
+
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  state.artDays = [];
+  state.artMonthLabels = [];
+  const recordedMonths = new Set();
+  let curr = new Date(startSun);
+
+  for (let c = 0; c < weeks; c++) {
+    const colDays = [];
+    for (let r = 0; r < 7; r++) {
+      const y = curr.getFullYear();
+      const m = String(curr.getMonth() + 1).padStart(2, '0');
+      const d = String(curr.getDate()).padStart(2, '0');
+      const dateKey = `${y}-${m}-${d}`;
+
+      colDays.push({
+        date: dateKey,
+        col: c,
+        row: r,
+        dayOfWeek: r,
+        existingCount: 0,
+        existingLevel: 0,
+        githubCount: 0,
+        localCount: 0,
+        tooltip: `No contributions on ${dateKey}`
+      });
+
+      if (r === 0 || curr.getDate() === 1) {
+        const mKey = `${curr.getFullYear()}-${curr.getMonth()}`;
+        if (!recordedMonths.has(mKey)) {
+          state.artMonthLabels.push({ colIndex: c, label: monthNames[curr.getMonth()] });
+          recordedMonths.add(mKey);
+        }
+      }
+
+      curr.setDate(curr.getDate() + 1);
+    }
+    state.artDays.push(colDays);
+  }
+}
+
+function recalculateArtGrid() {
   const ROWS = 7;
   const cols = state.artCols;
 
-  // Preserve existing values where possible
-  const oldGrid = state.artGrid;
-  state.artGrid = Array.from({ length: ROWS }, (_, r) =>
-    Array.from({ length: cols }, (_, c) => oldGrid[r]?.[c] ?? 0)
-  );
+  if (!state.artGrid || state.artGrid.length !== ROWS || state.artGrid[0]?.length !== cols) {
+    const oldGrid = state.artGrid || [];
+    state.artGrid = Array.from({ length: ROWS }, (_, r) =>
+      Array.from({ length: cols }, (_, c) => oldGrid[r]?.[c] ?? 0)
+    );
+  }
 
-  renderArtGrid();
+  if (!state.artTargetGrid || state.artTargetGrid.length !== ROWS || state.artTargetGrid[0]?.length !== cols) {
+    const oldTarget = state.artTargetGrid || [];
+    state.artTargetGrid = Array.from({ length: ROWS }, (_, r) =>
+      Array.from({ length: cols }, (_, c) => oldTarget[r]?.[c] ?? null)
+    );
+  }
+
+  for (let c = 0; c < cols; c++) {
+    for (let r = 0; r < ROWS; r++) {
+      const dayObj = state.artDays[c]?.[r];
+      const targetVal = state.artTargetGrid[r]?.[c];
+      if (targetVal !== null && targetVal !== undefined) {
+        const existing = dayObj?.existingCount || 0;
+        let targetCommits = 0;
+        if (targetVal === 1) targetCommits = 1;
+        else if (targetVal === 2) targetCommits = 2;
+        else if (targetVal === 3) targetCommits = 4;
+        else if (targetVal === 5) targetCommits = 5;
+        else if (targetVal === 7) targetCommits = 7;
+
+        state.artGrid[r][c] = Math.max(0, targetCommits - existing);
+      }
+    }
+  }
+}
+
+function renderArtMonthLabels() {
+  const mount = qs('#art-month-labels');
+  if (!mount) return;
+  mount.innerHTML = '';
+
+  const labels = state.artMonthLabels || [];
+  let lastX = -50;
+  labels.forEach(m => {
+    const x = m.colIndex * 16; // 13px cell + 3px gap = 16px
+    if (x - lastX >= 32) {
+      const span = document.createElement('span');
+      span.className = 'art-month-label';
+      span.style.left = `${x}px`;
+      span.textContent = m.label;
+      mount.appendChild(span);
+      lastX = x;
+    }
+  });
 }
 
 function renderArtGrid() {
   const gridEl = qs('#art-grid');
+  if (!gridEl) return;
   gridEl.innerHTML = '';
   gridEl.style.gridTemplateColumns = `repeat(${state.artCols}, var(--cell-size))`;
 
-  // Set grid-auto-flow: column; grid-template-rows: repeat(7, ...)
-  // already in CSS: grid-auto-flow: column; grid-template-rows: repeat(7, var(--cell-size))
+  const ROWS = 7;
+  const cols = state.artCols;
 
-  for (let c = 0; c < state.artCols; c++) {
-    for (let r = 0; r < 7; r++) {
-      const val  = state.artGrid[r][c];
+  for (let c = 0; c < cols; c++) {
+    for (let r = 0; r < ROWS; r++) {
+      const dayObj = state.artDays[c]?.[r];
       const cell = document.createElement('div');
-      cell.className = `art-cell l${countToLevel(val)}`;
       cell.dataset.row = r;
       cell.dataset.col = c;
-      cell.title = `${val} commit${val !== 1 ? 's' : ''}`;
+
+      const existing = dayObj?.existingCount || 0;
+      const artCommits = state.artGrid[r]?.[c] || 0;
+      const total = existing + artCommits;
+
+      let displayLevel = 0;
+      if (state.artViewMode === 'combined') {
+        displayLevel = countToLevel(total);
+      } else if (state.artViewMode === 'art') {
+        displayLevel = countToLevel(artCommits);
+      } else {
+        displayLevel = dayObj?.existingLevel ?? countToLevel(existing);
+      }
+
+      cell.className = `art-cell l${displayLevel}${existing > 0 ? ' has-existing' : ''}${artCommits > 0 ? ' has-art' : ''}`;
 
       cell.addEventListener('mousedown', e => {
         state.artIsPainting = true;
         paintCell(r, c);
+        showArtTooltip(cell, r, c);
         e.preventDefault();
       });
 
       cell.addEventListener('mouseenter', () => {
         if (state.artIsPainting) paintCell(r, c);
+        showArtTooltip(cell, r, c);
+      });
+
+      cell.addEventListener('mouseleave', () => {
+        hide(qs('#cal-tooltip'));
       });
 
       gridEl.appendChild(cell);
     }
   }
-
-  document.addEventListener('mouseup', () => { state.artIsPainting = false; }, { once: false });
 }
 
 function paintCell(r, c) {
-  state.artGrid[r][c] = state.artBrushValue;
-  const gridEl = qs('#art-grid');
-  // Find the cell: grid is col-major, so cell index = c*7 + r
-  const idx  = c * 7 + r;
-  const cell = gridEl.children[idx];
-  if (cell) {
-    const val = state.artBrushValue;
-    cell.className = `art-cell l${countToLevel(val)}`;
-    cell.title = `${val} commit${val !== 1 ? 's' : ''}`;
-    cell.dataset.value = val;
+  const dayObj = state.artDays[c]?.[r];
+  const brushVal = state.artBrushValue;
+
+  if (state.artBrushMode === 'target') {
+    state.artTargetGrid[r][c] = brushVal;
+    const existing = dayObj?.existingCount || 0;
+    let targetCommits = 0;
+    if (brushVal === 1) targetCommits = 1;
+    else if (brushVal === 2) targetCommits = 2;
+    else if (brushVal === 3) targetCommits = 4;
+    else if (brushVal === 5) targetCommits = 5;
+    else if (brushVal === 7) targetCommits = 7;
+
+    state.artGrid[r][c] = Math.max(0, targetCommits - existing);
+  } else {
+    state.artTargetGrid[r][c] = null;
+    state.artGrid[r][c] = brushVal;
   }
+
+  updateCellDOM(r, c);
+}
+
+function updateCellDOM(r, c) {
+  const gridEl = qs('#art-grid');
+  if (!gridEl) return;
+  const idx = c * 7 + r;
+  const cell = gridEl.children[idx];
+  if (!cell) return;
+
+  const dayObj = state.artDays[c]?.[r];
+  const existing = dayObj?.existingCount || 0;
+  const artCommits = state.artGrid[r]?.[c] || 0;
+  const total = existing + artCommits;
+
+  let displayLevel = 0;
+  if (state.artViewMode === 'combined') {
+    displayLevel = countToLevel(total);
+  } else if (state.artViewMode === 'art') {
+    displayLevel = countToLevel(artCommits);
+  } else {
+    displayLevel = dayObj?.existingLevel ?? countToLevel(existing);
+  }
+
+  cell.className = `art-cell l${displayLevel}${existing > 0 ? ' has-existing' : ''}${artCommits > 0 ? ' has-art' : ''}`;
+}
+
+function showArtTooltip(cell, r, c) {
+  const tooltip = qs('#cal-tooltip');
+  if (!tooltip) return;
+
+  const dayObj = state.artDays[c]?.[r];
+  const date = dayObj?.date || '';
+  const existing = dayObj?.existingCount || 0;
+  const art = state.artGrid[r]?.[c] || 0;
+  const total = existing + art;
+  const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][r] || '';
+  const sourceName = qs('#art-source-select')?.value === 'github' ? 'GitHub Account' : qs('#art-source-select')?.value === 'both' ? 'GitHub + Local' : 'Local Git';
+
+  tooltip.innerHTML = `
+    <div style="font-weight:600; margin-bottom:3px; color:var(--text);">${dayName}, ${date}</div>
+    <div style="color:var(--text-muted); font-size:0.75rem; line-height:1.5;">
+      <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:#38bdf8; margin-right:4px;"></span>
+      ${sourceName}: <strong style="color:var(--text);">${existing}</strong> contribution${existing !== 1 ? 's' : ''} (Level ${dayObj?.existingLevel ?? countToLevel(existing)})<br/>
+      🎨 Art to add: <strong style="color:var(--accent);">${art > 0 ? '+' : ''}${art}</strong> commit${art !== 1 ? 's' : ''}<br/>
+      ✨ Final after push: <strong style="color:#22c55e;">${total}</strong> contribution${total !== 1 ? 's' : ''} (Level ${countToLevel(total)})
+    </div>
+  `;
+
+  show(tooltip);
+  const rect = cell.getBoundingClientRect();
+  tooltip.style.left = `${Math.max(10, rect.left + window.scrollX - 60)}px`;
+  tooltip.style.top = `${rect.top + window.scrollY - 75}px`;
 }
 
 function clearArtGrid() {
-  state.artGrid = Array.from({ length: 7 }, () => Array(state.artCols).fill(0));
+  const ROWS = 7;
+  const cols = state.artCols;
+  state.artGrid = Array.from({ length: ROWS }, () => Array(cols).fill(0));
+  state.artTargetGrid = Array.from({ length: ROWS }, () => Array(cols).fill(null));
   renderArtGrid();
   hide(qs('#art-preview-panel'));
   hide(qs('#art-result-panel'));
   hide(qs('#btn-art-apply'));
+  toast('Art additions cleared. Existing contributions remain visible.', 'info');
 }
 
 function countToLevel(count) {
@@ -846,36 +1143,45 @@ async function handleArtPreview() {
   const previewPanel = qs('#art-preview-panel');
 
   try {
-    // Send grid + startDate to server to get schedule
     const data = await apiFetch('/api/designs/generate-schedule', {
       method: 'POST',
       body: JSON.stringify({ grid: state.artGrid, startDate })
     });
 
     const sched = data.schedule;
-    const totalCommits = sched.reduce((s, d) => s + d.count, 0);
-    const activeDays   = sched.filter(d => d.count > 0).length;
+    const totalNewCommits = sched.reduce((s, d) => s + d.count, 0);
+    const activeArtDays = sched.filter(d => d.count > 0).length;
+
+    let totalExisting = 0;
+    state.artDays.flat().forEach(d => { totalExisting += d.existingCount || 0; });
 
     previewPanel.className = 'result-panel';
     previewPanel.innerHTML = `
-      <strong>Schedule Preview</strong><br/>
+      <strong>Schedule Preview (Aligned to GitHub Weeks)</strong><br/>
       📅 Date range: <code>${sched[0]?.date ?? startDate}</code> → <code>${sched[sched.length-1]?.date ?? '?'}</code><br/>
-      📆 Total days: ${sched.length} &nbsp;|&nbsp; Active days: ${activeDays}<br/>
-      🔢 Total commits to create: <strong>${totalCommits}</strong><br/>
+      📆 Total days in view: ${sched.length} &nbsp;|&nbsp; Days with new art: ${activeArtDays}<br/>
+      🏢 Existing contributions in range: <strong>${totalExisting}</strong><br/>
+      ➕ New art commits to create: <strong style="color:var(--accent)">${totalNewCommits}</strong><br/>
+      ✨ Final total on GitHub: <strong style="color:#22c55e">${totalExisting + totalNewCommits}</strong><br/>
       <div class="commit-list" style="margin-top:8px">
-        ${sched.filter(d => d.count > 0).slice(0, 20).map(d =>
-          `<div class="commit-item">
+        ${sched.filter(d => d.count > 0).slice(0, 25).map(d => {
+          const dayObj = state.artDays[d.gridCol]?.[d.gridRow];
+          const exist = dayObj?.existingCount || 0;
+          return `<div class="commit-item">
             <span class="commit-date">${escHtml(d.date)}</span>
-            <span class="commit-msg">${d.count} commit${d.count !== 1 ? 's' : ''}</span>
-           </div>`
-        ).join('')}
-        ${activeDays > 20 ? `<div style="color:var(--text-muted)">…and ${activeDays - 20} more days</div>` : ''}
+            <span class="commit-msg">+${d.count} commit${d.count !== 1 ? 's' : ''} (existing: ${exist} → final: ${exist + d.count})</span>
+          </div>`;
+        }).join('')}
+        ${activeArtDays > 25 ? `<div style="color:var(--text-muted)">…and ${activeArtDays - 25} more days</div>` : ''}
       </div>`;
     show(previewPanel);
 
-    if (totalCommits > 0) {
+    if (totalNewCommits > 0) {
       show(qs('#btn-art-apply'));
       qs('#btn-art-apply').disabled = false;
+    } else {
+      hide(qs('#btn-art-apply'));
+      toast('The current artwork requires 0 new commits (existing commits already satisfy the design!).', 'info');
     }
   } catch (err) {
     previewPanel.className   = 'result-panel error';
@@ -892,7 +1198,7 @@ async function handleArtApply() {
   const authorEmail = qs('#art-author-email')?.value?.trim();
   if (!startDate) { toast('Please select a start date.', 'error'); return; }
 
-  setLoading(true, 'Creating art commits…');
+  setLoading(true, 'Creating art commits in local repository…');
   const resultPanel = qs('#art-result-panel');
   hide(resultPanel);
 
@@ -911,7 +1217,7 @@ async function handleArtApply() {
 
     resultPanel.className = 'result-panel success';
     resultPanel.innerHTML = `
-      <strong>✓ ${data.createdCount} real commits created</strong><br/>
+      <strong>✓ ${data.createdCount} real commits created locally</strong><br/>
       ${data.message}<br/>
       <div class="commit-list">
         ${(data.commits || []).slice(0, 20).map(c =>
@@ -924,7 +1230,12 @@ async function handleArtApply() {
         ${data.commits?.length > 20 ? `<div style="color:var(--text-muted)">…and ${data.commits.length - 20} more</div>` : ''}
       </div>`;
     show(resultPanel);
-    toast(`Art applied! ${data.createdCount} commits created.`, 'success');
+    toast(`Art applied! ${data.createdCount} commits created. Push them to remote to update GitHub!`, 'success');
+
+    // Re-sync with status bar & update local grid
+    updateGitStatusBar();
+    refreshCalendar();
+    syncArtGridFromRemote();
   } catch (err) {
     resultPanel.className   = 'result-panel error';
     resultPanel.textContent = `Error: ${err.message}`;
@@ -1171,6 +1482,7 @@ function initSettings() {
     btnSave.addEventListener('click', async () => {
       const authorName = qs('#settings-author-name')?.value?.trim() || '';
       const authorEmail = qs('#settings-author-email')?.value?.trim() || '';
+      const githubUsername = qs('#settings-github-username')?.value?.trim() || '';
       const defaultBranch = qs('#settings-default-branch')?.value?.trim() || '';
       const remoteName = qs('#settings-remote-name')?.value?.trim() || '';
       const defaultCommitMessage = qs('#settings-default-message')?.value?.trim() || '';
@@ -1182,6 +1494,7 @@ function initSettings() {
           body: JSON.stringify({
             authorName,
             authorEmail,
+            githubUsername,
             defaultBranch,
             remoteName,
             defaultCommitMessage
@@ -1190,7 +1503,7 @@ function initSettings() {
 
         state.settings = data.settings;
         populateAuthorAndSettingsInputs(data.settings);
-        toast('Settings saved successfully! Author details updated across all tools.', 'success');
+        toast('Settings saved successfully! Details updated across all tools.', 'success');
         updateGitStatusBar();
       } catch (err) {
         toast('Failed to save settings: ' + err.message, 'error');

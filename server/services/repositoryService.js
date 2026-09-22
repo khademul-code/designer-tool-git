@@ -17,7 +17,8 @@ const DEFAULT_SETTINGS = {
   defaultBranch: 'main',
   remoteName: 'origin',
   authorName: '',
-  authorEmail: ''
+  authorEmail: '',
+  githubUsername: ''
 };
 
 /**
@@ -29,23 +30,40 @@ function getSettings() {
 }
 
 /**
- * Returns settings with fallback to local Git user.name and user.email if unset.
+ * Returns settings with fallback to local Git user.name, user.email, and remote GitHub username if unset.
  */
 async function getEffectiveSettings(repoPath) {
   const settings = getSettings();
   const targetPath = repoPath || (settings.repositoryPath ? settings.repositoryPath.trim() : '');
   let gitUser = { name: '', email: '' };
+  let detectedGithubUser = '';
+
   try {
     gitUser = await gitReader.getGitUserConfig(targetPath);
   } catch (e) {
     // Ignore error
   }
 
+  if (targetPath) {
+    try {
+      const remotes = await gitReader.getRemotes(targetPath);
+      const origin = remotes.find(r => r.name === settings.remoteName) || remotes[0];
+      if (origin && origin.url) {
+        const ghMatch = origin.url.match(/github\.com[:/]([^/]+)/i);
+        if (ghMatch) detectedGithubUser = ghMatch[1].trim();
+      }
+    } catch (e) {
+      // Ignore error
+    }
+  }
+
   return {
     ...settings,
     authorName: settings.authorName || gitUser.name || '',
     authorEmail: settings.authorEmail || gitUser.email || '',
-    gitUser
+    githubUsername: settings.githubUsername || detectedGithubUser || '',
+    gitUser,
+    detectedGithubUser
   };
 }
 

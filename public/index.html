@@ -256,6 +256,27 @@
         <!-- Controls column -->
         <div class="art-controls-col">
           <div class="form-card">
+            <!-- GitHub Account & Overlay Source -->
+            <div class="form-group">
+              <label for="art-github-username">GitHub Username (Account Overlay)</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="art-github-username" class="input-control" placeholder="e.g. khademul-menaliam" />
+                <button type="button" id="btn-art-fetch-sync" class="btn btn-secondary btn-sm" title="Fetch live contributions from GitHub profile">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                  Fetch
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="art-source-select">Contribution Source</label>
+              <select id="art-source-select" class="select-control">
+                <option value="github" selected>GitHub Account (All Repositories)</option>
+                <option value="both">Merged (GitHub Account + Local Repo)</option>
+                <option value="local">Local Repository Only</option>
+              </select>
+            </div>
+
             <div class="form-group">
               <label for="art-start-date">Start Date</label>
               <input type="date" id="art-start-date" class="input-control" />
@@ -273,19 +294,31 @@
             </div>
 
             <div class="form-group">
-              <label>Paint Intensity</label>
+              <label>Drawing Brush Mode</label>
+              <div class="btn-group" role="group" aria-label="Brush Mode" style="width: 100%; display: flex;">
+                <button type="button" class="btn active" id="btn-brush-target" style="flex: 1; text-align: center;" title="Target Level (Smart Match): Guarantees the final square on GitHub matches your painted level exactly by accounting for existing commits">
+                  🎯 Target Level
+                </button>
+                <button type="button" class="btn" id="btn-brush-additive" style="flex: 1; text-align: center;" title="Additive Mode: Directly adds the selected commits on top of existing commits">
+                  ➕ Additive (+N)
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Paint Level / Commits</label>
               <div class="intensity-picker" id="intensity-picker" role="group" aria-label="Select commit count">
-                <button class="intensity-btn" data-value="0" title="0 commits (clear)">0</button>
-                <button class="intensity-btn active" data-value="1" title="1 commit">1</button>
-                <button class="intensity-btn" data-value="2" title="2 commits">2</button>
-                <button class="intensity-btn" data-value="3" title="3 commits">3</button>
-                <button class="intensity-btn" data-value="5" title="5 commits">5</button>
-                <button class="intensity-btn" data-value="7" title="7 commits">7</button>
+                <button class="intensity-btn" data-value="0" title="Level 0 / 0 commits (clear)">0</button>
+                <button class="intensity-btn active" data-value="1" title="Level 1 / 1 commit">1</button>
+                <button class="intensity-btn" data-value="2" title="Level 2 / 2 commits">2</button>
+                <button class="intensity-btn" data-value="3" title="Level 3 / 4 commits">3</button>
+                <button class="intensity-btn" data-value="5" title="Level 4 / 5 commits">5</button>
+                <button class="intensity-btn" data-value="7" title="Level 4+ / 7 commits">7</button>
               </div>
             </div>
 
             <div class="art-tool-row">
-              <button id="btn-art-clear" class="btn btn-ghost btn-sm">Clear All</button>
+              <button id="btn-art-clear" class="btn btn-ghost btn-sm">Clear Art</button>
               <button id="btn-art-resize" class="btn btn-ghost btn-sm">Apply Size</button>
             </div>
 
@@ -307,7 +340,7 @@
 
             <div class="form-note">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              Click cells to paint. Each cell = 1 calendar day. Each value = commit count.
+              <span>Click &amp; drag to paint. The canvas overlays your live GitHub account contributions so your design looks identical after pushing.</span>
             </div>
           </div>
 
@@ -326,14 +359,37 @@
 
         <!-- Grid column -->
         <div class="art-grid-col">
-          <div class="art-grid-header">
+          <!-- View mode toggle & sync status -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div class="btn-group" role="group" aria-label="View Mode">
+              <button type="button" class="btn btn-xs active" id="btn-view-combined" title="Combined View: shows what GitHub will look like after pushing">
+                Combined (GitHub Final)
+              </button>
+              <button type="button" class="btn btn-xs" id="btn-view-art" title="Art Only: shows only the new commits to be added">
+                Art Only
+              </button>
+              <button type="button" class="btn btn-xs" id="btn-view-existing" title="Existing: shows current contributions on GitHub/local before adding art">
+                Existing Activity
+              </button>
+            </div>
+            <div id="art-sync-status" style="font-size: 0.75rem; color: var(--text-muted);">
+              <span>Syncing with GitHub…</span>
+            </div>
+          </div>
+
+          <!-- Month header labels directly aligned to week columns -->
+          <div id="art-month-labels" class="art-month-labels"></div>
+
+          <!-- Canvas wrapper with left-side weekdays -->
+          <div class="art-canvas-wrap">
             <div class="art-weekday-labels" id="art-weekday-labels">
               <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
             </div>
+            <div class="art-grid-scroll">
+              <div class="art-grid" id="art-grid" role="grid" aria-label="Contribution art canvas"></div>
+            </div>
           </div>
-          <div class="art-grid-scroll">
-            <div class="art-grid" id="art-grid" role="grid" aria-label="Contribution art canvas"></div>
-          </div>
+
           <div class="art-grid-legend">
             <div class="calendar-legend">
               <span class="legend-label">Less</span>
@@ -343,6 +399,10 @@
               <span class="legend-cell l3"></span>
               <span class="legend-cell l4"></span>
               <span class="legend-label">More</span>
+              <span style="margin-left: 12px; font-size: 0.7rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 4px;">
+                <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #38bdf8;"></span>
+                Cyan dot = Existing commits
+              </span>
             </div>
           </div>
         </div>
@@ -420,6 +480,14 @@
             <label for="settings-author-email">Author Email</label>
             <input type="email" id="settings-author-email" class="input-control" placeholder="your.email@example.com" />
           </div>
+        </div>
+
+        <div class="form-group">
+          <label for="settings-github-username">GitHub Account Username</label>
+          <input type="text" id="settings-github-username" class="input-control" placeholder="e.g. khademul-menaliam" />
+          <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; display: block;">
+            Used to fetch your live contribution history across all repositories on your GitHub profile.
+          </span>
         </div>
 
         <div style="margin-bottom: 1.5rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
