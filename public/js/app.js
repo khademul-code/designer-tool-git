@@ -226,7 +226,7 @@ function enableButtons(enabled) {
 
 let isPushing = false;
 
-async function handlePush() {
+async function handlePush(force = false) {
   if (isPushing || !state.isConnected) return;
   isPushing = true;
 
@@ -237,21 +237,21 @@ async function handlePush() {
   const setBtnLoading = (btn) => {
     if (!btn) return;
     btn.disabled = true;
-    btn.innerHTML = `<span class="spinner" style="width:12px;height:12px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin 0.8s linear infinite"></span> Pushing…`;
+    btn.innerHTML = `<span class="spinner" style="width:12px;height:12px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin 0.8s linear infinite"></span> ${force ? 'Force Pushing…' : 'Pushing…'}`;
   };
 
   setBtnLoading(sidebarBtn);
   setBtnLoading(headerBtn);
   if (stripBtn) {
     stripBtn.disabled = true;
-    stripBtn.textContent = 'Pushing…';
+    stripBtn.textContent = force ? 'Force Pushing…' : 'Pushing…';
   }
-  setLoading(true, 'Pushing commits to remote…');
+  setLoading(true, force ? 'Force-pushing to remote…' : 'Pushing commits to remote…');
 
   try {
     const data = await apiFetch('/api/git/push', {
       method: 'POST',
-      body: JSON.stringify({})
+      body: JSON.stringify({ force })
     });
 
     toast(data.output || 'Commits pushed to remote successfully!', 'success');
@@ -260,6 +260,17 @@ async function handlePush() {
       refreshCalendar();
     }
   } catch (err) {
+    if (err.message && err.message.includes('non-fast-forward')) {
+      const confirmForce = confirm(
+        'Remote history has diverged because past commits were removed.\n\n' +
+        'To overwrite GitHub with your cleaned commits, a Force Push is required.\n\n' +
+        'Would you like to Force Push now?'
+      );
+      if (confirmForce) {
+        isPushing = false;
+        return handlePush(true);
+      }
+    }
     toast(`Push failed: ${err.message}`, 'error');
   } finally {
     isPushing = false;
@@ -1044,8 +1055,16 @@ async function handleRemoveConfirm() {
       <span style="color:var(--text-muted)">New HEAD: <code>${escHtml(data.newHead?.substring(0,7) ?? 'empty')}</code></span><br/>
       <br/>
       <span style="color:var(--accent)">✓ All real project code was 100% preserved.</span><br/>
-      <span style="color:var(--warning-dim)">⚠ If you already pushed to remote, force-push your updated branch: <code>git push origin ${escHtml(currentBranch)} --force</code></span>`;
+      <span style="color:var(--warning-dim)">⚠ If you already pushed to remote, force-push your updated branch: <code>git push origin ${escHtml(currentBranch)} --force</code></span>
+      <div style="margin-top:10px;">
+        <button id="btn-force-push-result" class="btn btn-warning btn-sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/></svg>
+          Force Push to Remote Now
+        </button>
+      </div>`;
     show(resultPanel);
+
+    qs('#btn-force-push-result')?.addEventListener('click', () => handlePush(true));
 
     state.rmPreviewData = null;
     toast(`Safely removed ${data.removedCount} empty commit(s)!`, 'success');
