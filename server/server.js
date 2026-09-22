@@ -237,8 +237,8 @@ app.post('/api/contributions/random', async (req, res) => {
         time: '12:00:00',
         count,
         message: (message || settings.defaultCommitMessage || 'Git learning commit').trim(),
-        authorName: settings.authorName || 'Git Learner',
-        authorEmail: settings.authorEmail || 'learner@example.com'
+        authorName: settings.authorName || 'Khademul Islam',
+        authorEmail: settings.authorEmail || 'khadimulmanaliam@gmail.com'
       });
 
       cursor.setDate(cursor.getDate() + 1);
@@ -339,8 +339,8 @@ app.post('/api/commits/preview', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Single batch limit is 100 commits in Commit Lab.' });
     }
 
-    const finalAuthorName = (authorName || settings.authorName || 'Git Learner').trim();
-    const finalAuthorEmail = (authorEmail || settings.authorEmail || 'learner@example.com').trim();
+    const finalAuthorName = (authorName || settings.authorName || 'Khademul Islam').trim();
+    const finalAuthorEmail = (authorEmail || settings.authorEmail || 'khadimulmanaliam@gmail.com').trim();
     const finalMessage = (message || settings.defaultCommitMessage || 'Git learning commit').trim();
 
     const sampleDate = `${date}T${time}:00`;
@@ -373,8 +373,8 @@ app.post('/api/commits/create', async (req, res) => {
     }
 
     const commitCount = Math.max(1, parseInt(count, 10) || 1);
-    const finalAuthorName = (authorName || settings.authorName || 'Git Learner').trim();
-    const finalAuthorEmail = (authorEmail || settings.authorEmail || 'learner@example.com').trim();
+    const finalAuthorName = (authorName || settings.authorName || 'Khademul Islam').trim();
+    const finalAuthorEmail = (authorEmail || settings.authorEmail || 'khadimulmanaliam@gmail.com').trim();
     const finalMessage = (message || settings.defaultCommitMessage || 'Git learning commit').trim();
 
     const plan = [{
@@ -562,8 +562,8 @@ app.post('/api/designs/apply-locally', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Grid has 0 commits to create.' });
     }
 
-    const finalAuthorName = (authorName || settings.authorName || 'Git Learner').trim();
-    const finalAuthorEmail = (authorEmail || settings.authorEmail || 'learner@example.com').trim();
+    const finalAuthorName = (authorName || settings.authorName || 'Khademul Islam').trim();
+    const finalAuthorEmail = (authorEmail || settings.authorEmail || 'khadimulmanaliam@gmail.com').trim();
     const finalMessage = (message || settings.defaultCommitMessage || 'Git pattern commit').trim();
 
     // Map schedule into commitPlan items
@@ -611,7 +611,11 @@ app.post('/api/designs/apply-locally', async (req, res) => {
 app.post('/api/git/pull', async (req, res) => {
   try {
     const { repoPath, settings } = await getValidatedRepoPath();
-    const { remoteName = settings.remoteName, branchName = settings.defaultBranch } = req.body;
+    const currentBranch = await gitReader.getCurrentBranch(repoPath).catch(() => null);
+    const resolvedBranch = (currentBranch && currentBranch !== 'unknown' && !currentBranch.includes(' '))
+      ? currentBranch
+      : (settings.defaultBranch || 'main');
+    const { remoteName = settings.remoteName || 'origin', branchName = (req.body.branchName || resolvedBranch) } = req.body;
 
     const result = await gitWriter.pullFromRemote(repoPath, remoteName, branchName);
     const status = await repositoryService.getFullRepositoryStatus();
@@ -674,7 +678,11 @@ app.post('/api/git/reset-commits', async (req, res) => {
 app.post('/api/git/reset-branch', async (req, res) => {
   try {
     const { repoPath, settings } = await getValidatedRepoPath();
-    const { branchName = settings.defaultBranch } = req.body;
+    const currentBranch = await gitReader.getCurrentBranch(repoPath).catch(() => null);
+    const resolvedBranch = (currentBranch && currentBranch !== 'unknown' && !currentBranch.includes(' '))
+      ? currentBranch
+      : (settings.defaultBranch || 'main');
+    const { branchName = (req.body.branchName || resolvedBranch) } = req.body;
 
     const result = await gitWriter.resetTestBranch(repoPath, branchName);
     const status = await repositoryService.getFullRepositoryStatus();
