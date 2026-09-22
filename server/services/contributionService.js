@@ -161,7 +161,7 @@ async function getAlignedGrid(options = {}) {
     githubUsername = ''
   } = options;
 
-  const numWeeks = Math.max(1, Math.min(52, parseInt(rawWeeks, 10) || 12));
+  const numWeeks = Math.max(1, Math.min(53, parseInt(rawWeeks, 10) || 12));
   const baseDate = startDate ? new Date(startDate + 'T00:00:00') : new Date();
   
   // Snap to Sunday of that week

@@ -820,10 +820,59 @@ input, select { font-family: inherit; }
   color: var(--text);
 }
 
+/* Position & Nudge Controls */
+.nudge-controls-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.placement-pills {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 5px;
+}
+
+.placement-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-right: 2px;
+}
+
+.pill-snap {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  border-radius: 3px;
+  padding: 2px 5px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.pill-snap:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+}
+
+.full-width-toolbar {
+  width: 100%;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-light);
+}
+
 /* Presets */
 .art-presets-group {
   display: flex;
-  gap: 4px;
+  gap: 5px;
   flex-wrap: wrap;
 }
 
@@ -832,7 +881,7 @@ input, select { font-family: inherit; }
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 6px;
-  padding: 3px 8px;
+  padding: 4px 9px;
   font-size: 0.72rem;
   cursor: pointer;
   transition: all 0.12s ease;
@@ -840,6 +889,7 @@ input, select { font-family: inherit; }
   align-items: center;
   gap: 4px;
   user-select: none;
+  font-weight: 500;
 }
 
 .btn-preset:hover {
@@ -847,6 +897,18 @@ input, select { font-family: inherit; }
   background: rgba(56, 189, 248, 0.12);
   color: #fff;
   transform: translateY(-1px);
+}
+
+.btn-preset.highlight-preset {
+  border-color: #38bdf8 !important;
+  background: rgba(56, 189, 248, 0.16) !important;
+  color: #38bdf8 !important;
+  font-weight: 600;
+}
+
+.btn-preset.highlight-preset:hover {
+  background: rgba(56, 189, 248, 0.28) !important;
+  color: #fff !important;
 }
 
 /* Canvas Tools & Zoom */
@@ -992,21 +1054,21 @@ input, select { font-family: inherit; }
 
 /* Grid Zoom Sizes */
 .art-grid.size-s {
-  --cell-size: 13px;
-  --cell-gap: 3px;
+  --cell-size: 11px;
+  --cell-gap: 2.5px;
 }
 .art-grid.size-m {
-  --cell-size: 16px;
+  --cell-size: 14px;
   --cell-gap: 3px;
 }
 .art-grid.size-l {
-  --cell-size: 20px;
-  --cell-gap: 4px;
+  --cell-size: 18px;
+  --cell-gap: 3.5px;
 }
 
 .art-grid.size-s + .art-weekday-labels,
 .art-weekday-labels {
-  grid-template-rows: repeat(7, var(--cell-size, 16px));
+  grid-template-rows: repeat(7, var(--cell-size, 14px));
 }
 
 .art-cell {

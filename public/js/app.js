@@ -23,7 +23,7 @@ const state = {
   artTargetGrid:  [],   // 7 rows × N cols: target painted values
   artDays:        [],   // N cols array of day objects
   artMonthLabels: [],
-  artCols:        12,
+  artCols:        52,
   artBrushValue:  1,
   artBrushMode:   'target',   // 'target' | 'additive'
   artViewMode:    'combined', // 'combined' | 'art' | 'existing'
@@ -766,18 +766,76 @@ async function handleRandom(pushAfter = false) {
 /* ===================================================
    FEATURE 3 — CONTRIBUTION ART STUDIO
    =================================================== */
-function initArt() {
-  const today = todayStr();
-  qs('#art-start-date').value = today;
-
-  // Default start date (Sunday 11 weeks ago)
+function setArtRangeMode(mode) {
   const startDateInput = qs('#art-start-date');
-  if (startDateInput && !startDateInput.value) {
+  const colsInput = qs('#art-cols');
+  let weeks = 52;
+  let startSunStr = '';
+
+  const now = new Date();
+  if (mode === 'rolling-52') {
+    weeks = 52;
+    const d = new Date(now);
+    d.setDate(d.getDate() - (52 - 1) * 7);
+    d.setDate(d.getDate() - d.getDay()); // Sunday
+    startSunStr = d.toISOString().substring(0, 10);
+  } else if (mode === 'year-2026') {
+    weeks = 53;
+    const d = new Date('2026-01-01T00:00:00');
+    d.setDate(d.getDate() - d.getDay());
+    startSunStr = d.toISOString().substring(0, 10);
+  } else if (mode === 'year-2025') {
+    weeks = 53;
+    const d = new Date('2025-01-01T00:00:00');
+    d.setDate(d.getDate() - d.getDay());
+    startSunStr = d.toISOString().substring(0, 10);
+  } else if (mode === 'weeks-26') {
+    weeks = 26;
+    const d = new Date(now);
+    d.setDate(d.getDate() - (26 - 1) * 7);
+    d.setDate(d.getDate() - d.getDay());
+    startSunStr = d.toISOString().substring(0, 10);
+  } else if (mode === 'weeks-16') {
+    weeks = 16;
+    const d = new Date(now);
+    d.setDate(d.getDate() - (16 - 1) * 7);
+    d.setDate(d.getDate() - d.getDay());
+    startSunStr = d.toISOString().substring(0, 10);
+  } else if (mode === 'weeks-12') {
+    weeks = 12;
+    const d = new Date(now);
+    d.setDate(d.getDate() - (12 - 1) * 7);
+    d.setDate(d.getDate() - d.getDay());
+    startSunStr = d.toISOString().substring(0, 10);
+  } else {
+    // custom - keep whatever is in inputs
+    return;
+  }
+
+  state.artCols = weeks;
+  if (colsInput) colsInput.value = weeks;
+  if (startDateInput && startSunStr) startDateInput.value = startSunStr;
+
+  qsa('.quick-chips-row .chip-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.weeks, 10) === weeks);
+  });
+}
+
+function initArt() {
+  const rangeSelect = qs('#art-range-select');
+  if (rangeSelect) {
+    rangeSelect.value = 'rolling-52';
+    setArtRangeMode('rolling-52');
+    rangeSelect.addEventListener('change', () => {
+      setArtRangeMode(rangeSelect.value);
+      syncArtGridFromRemote();
+    });
+  } else {
     const d = new Date();
     d.setDate(d.getDate() - (state.artCols - 1) * 7);
-    const day = d.getDay();
-    d.setDate(d.getDate() - day);
-    startDateInput.value = d.toISOString().substring(0, 10);
+    d.setDate(d.getDate() - d.getDay());
+    const startDateInput = qs('#art-start-date');
+    if (startDateInput) startDateInput.value = d.toISOString().substring(0, 10);
   }
 
   // Pre-fill GitHub username if available
@@ -844,11 +902,40 @@ function initArt() {
       const colsInput = qs('#art-cols');
       if (colsInput) colsInput.value = weeks;
       state.artCols = weeks;
+
+      const rSelect = qs('#art-range-select');
+      if (rSelect) {
+        if (weeks === 52) rSelect.value = 'rolling-52';
+        else if (weeks === 26) rSelect.value = 'weeks-26';
+        else if (weeks === 16) rSelect.value = 'weeks-16';
+        else if (weeks === 12) rSelect.value = 'weeks-12';
+        else rSelect.value = 'custom';
+      }
+
+      const d = new Date();
+      d.setDate(d.getDate() - (weeks - 1) * 7);
+      d.setDate(d.getDate() - d.getDay());
+      const sInput = qs('#art-start-date');
+      if (sInput) sInput.value = d.toISOString().substring(0, 10);
+
       syncArtGridFromRemote();
     });
   });
 
-  // Creative Presets
+  // Movement & Nudge Controls
+  qs('#btn-nudge-far-left')?.addEventListener('click', () => shiftArtwork(-4, 0));
+  qs('#btn-nudge-left')?.addEventListener('click', () => shiftArtwork(-1, 0));
+  qs('#btn-nudge-up')?.addEventListener('click', () => shiftArtwork(0, -1));
+  qs('#btn-nudge-down')?.addEventListener('click', () => shiftArtwork(0, 1));
+  qs('#btn-nudge-right')?.addEventListener('click', () => shiftArtwork(1, 0));
+  qs('#btn-nudge-far-right')?.addEventListener('click', () => shiftArtwork(4, 0));
+
+  // Snap placement pills
+  qs('#btn-place-start')?.addEventListener('click', () => snapArtworkTo('start'));
+  qs('#btn-place-center')?.addEventListener('click', () => snapArtworkTo('center'));
+  qs('#btn-place-recent')?.addEventListener('click', () => snapArtworkTo('recent'));
+
+  // Creative & Realistic Presets
   qsa('.btn-preset').forEach(btn => {
     btn.addEventListener('click', () => {
       applyArtPreset(btn.dataset.preset);
@@ -859,14 +946,15 @@ function initArt() {
   const btnInvert = qs('#btn-art-invert');
   if (btnInvert) btnInvert.addEventListener('click', () => applyArtPreset('invert'));
   const btnClear = qs('#btn-art-clear');
-  if (btnClear) btnClear.addEventListener('click', clearArtGrid);
+  if (btnClear) btnClear.addEventListener('click', () => clearArtGrid(true));
 
-  // Zoom / Scale Selector
+  // Zoom / Scale Selector (11px S, 14px M, 18px L)
   qsa('.zoom-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       qsa('.zoom-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      const sizeCode = btn.dataset.size === '13' ? 's' : btn.dataset.size === '20' ? 'l' : 'm';
+      const sizeVal = btn.dataset.size;
+      const sizeCode = sizeVal === '11' ? 's' : sizeVal === '18' ? 'l' : 'm';
       state.artZoom = sizeCode;
       const grid = qs('#art-grid');
       if (grid) {
@@ -884,16 +972,31 @@ function initArt() {
   const sourceSel = qs('#art-source-select');
   if (sourceSel) sourceSel.addEventListener('change', syncArtGridFromRemote);
 
-  // Start date change
-  if (startDateInput) startDateInput.addEventListener('change', syncArtGridFromRemote);
+  // Start date manual change
+  const startDateInput = qs('#art-start-date');
+  if (startDateInput) {
+    startDateInput.addEventListener('change', () => {
+      const rs = qs('#art-range-select');
+      if (rs) rs.value = 'custom';
+      syncArtGridFromRemote();
+    });
+  }
 
   // Resize button
   const btnResize = qs('#btn-art-resize');
   if (btnResize) {
     btnResize.addEventListener('click', () => {
       const cols = parseInt(qs('#art-cols').value, 10);
-      if (cols >= 1 && cols <= 52) {
+      if (cols >= 1 && cols <= 53) {
         state.artCols = cols;
+        const rs = qs('#art-range-select');
+        if (rs) {
+          if (cols === 52) rs.value = 'rolling-52';
+          else if (cols === 26) rs.value = 'weeks-26';
+          else if (cols === 16) rs.value = 'weeks-16';
+          else if (cols === 12) rs.value = 'weeks-12';
+          else rs.value = 'custom';
+        }
         // Update quick chips active state if matching
         qsa('.quick-chips-row .chip-btn').forEach(b => {
           b.classList.toggle('active', parseInt(b.dataset.weeks, 10) === cols);
@@ -1046,8 +1149,7 @@ function recalculateArtGrid() {
         if (targetVal === 1) targetCommits = 1;
         else if (targetVal === 2) targetCommits = 2;
         else if (targetVal === 3) targetCommits = 4;
-        else if (targetVal === 5) targetCommits = 5;
-        else if (targetVal === 7) targetCommits = 7;
+        else if (targetVal >= 4) targetCommits = Math.max(targetVal, 7);
 
         state.artGrid[r][c] = Math.max(0, targetCommits - existing);
       }
@@ -1062,12 +1164,12 @@ function renderArtMonthLabels() {
   if (!mount) return;
   mount.innerHTML = '';
 
-  const pitch = state.artZoom === 's' ? 16 : state.artZoom === 'l' ? 24 : 19;
+  const pitch = state.artZoom === 's' ? 13.5 : state.artZoom === 'l' ? 21.5 : 17;
   const labels = state.artMonthLabels || [];
   let lastX = -50;
   labels.forEach(m => {
     const x = m.colIndex * pitch;
-    if (x - lastX >= 32) {
+    if (x - lastX >= 28) {
       const span = document.createElement('span');
       span.className = 'art-month-label';
       span.style.left = `${x}px`;
@@ -1142,8 +1244,7 @@ function setCellArt(r, c, brushVal) {
     if (brushVal === 1) targetCommits = 1;
     else if (brushVal === 2) targetCommits = 2;
     else if (brushVal === 3) targetCommits = 4;
-    else if (brushVal === 5) targetCommits = 5;
-    else if (brushVal === 7) targetCommits = 7;
+    else if (brushVal >= 4) targetCommits = Math.max(brushVal, 7);
 
     state.artGrid[r][c] = Math.max(0, targetCommits - existing);
   } else {
@@ -1211,6 +1312,86 @@ function showArtTooltip(cell, r, c) {
   tooltip.style.top = `${rect.top + window.scrollY - 75}px`;
 }
 
+function shiftArtwork(deltaCols, deltaRows) {
+  const ROWS = 7;
+  const cols = state.artCols;
+  const newGrid = Array.from({ length: ROWS }, () => Array(cols).fill(0));
+  const newTarget = Array.from({ length: ROWS }, () => Array(cols).fill(null));
+
+  let cellCount = 0;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < cols; c++) {
+      const artVal = state.artGrid[r]?.[c] || 0;
+      const targetVal = state.artTargetGrid[r]?.[c] ?? null;
+      if (artVal > 0 || targetVal !== null) {
+        cellCount++;
+        const nr = r + deltaRows;
+        const nc = c + deltaCols;
+        if (nr >= 0 && nr < ROWS && nc >= 0 && nc < cols) {
+          newGrid[nr][nc] = artVal;
+          newTarget[nr][nc] = targetVal;
+        }
+      }
+    }
+  }
+
+  if (cellCount === 0) {
+    toast('No artwork to move. Draw cells or select a preset first!', 'info');
+    return;
+  }
+
+  state.artGrid = newGrid;
+  state.artTargetGrid = newTarget;
+
+  if (state.artBrushMode === 'target') {
+    recalculateArtGrid();
+  }
+
+  renderArtGrid();
+  saveArtState();
+}
+
+function snapArtworkTo(position) {
+  const ROWS = 7;
+  const cols = state.artCols;
+  let minCol = cols, maxCol = -1, minRow = ROWS, maxRow = -1;
+
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < cols; c++) {
+      if ((state.artGrid[r]?.[c] || 0) > 0 || (state.artTargetGrid[r]?.[c] !== null && state.artTargetGrid[r]?.[c] !== undefined)) {
+        if (c < minCol) minCol = c;
+        if (c > maxCol) maxCol = c;
+        if (r < minRow) minRow = r;
+        if (r > maxRow) maxRow = r;
+      }
+    }
+  }
+
+  if (maxCol === -1) {
+    toast('Canvas has no artwork yet. Draw cells or select a preset first!', 'info');
+    return;
+  }
+
+  const artWidth = maxCol - minCol + 1;
+  const artHeight = maxRow - minRow + 1;
+
+  let targetCol = minCol;
+  if (position === 'start') {
+    targetCol = 0;
+  } else if (position === 'center') {
+    targetCol = Math.max(0, Math.floor((cols - artWidth) / 2));
+  } else if (position === 'recent') {
+    targetCol = Math.max(0, cols - artWidth);
+  }
+
+  const deltaCols = targetCol - minCol;
+  const targetRow = Math.max(0, Math.floor((ROWS - artHeight) / 2));
+  const deltaRows = (position === 'center') ? (targetRow - minRow) : 0;
+
+  shiftArtwork(deltaCols, deltaRows);
+  toast(`Snapped artwork to ${position}.`, 'info');
+}
+
 function applyArtPreset(presetName) {
   const ROWS = 7;
   const cols = state.artCols;
@@ -1218,7 +1399,7 @@ function applyArtPreset(presetName) {
   const brushVal = state.artBrushValue || 2;
 
   if (presetName === 'clear') {
-    clearArtGrid();
+    clearArtGrid(true);
     return;
   }
 
@@ -1235,48 +1416,138 @@ function applyArtPreset(presetName) {
     return;
   }
 
+  // Realistic Pro Developer Heatmap Wave (Organized across the full calendar)
+  if (presetName === 'devwave') {
+    clearArtGrid(false);
+    for (let c = 0; c < cols; c++) {
+      const waveCycle = Math.sin((c / 5.2) * Math.PI); // authentic sprint cycle
+      for (let r = 0; r < 7; r++) {
+        const isWeekend = (r === 0 || r === 6);
+        if (isWeekend) {
+          // Weekend: occasional hobby commit
+          const weekendVal = ((c * 3 + r * 7) % 11 < 3) ? (waveCycle > 0 ? 2 : 1) : 0;
+          if (weekendVal > 0) setCellArt(r, c, weekendVal);
+        } else {
+          // Weekdays (Mon-Fri) with mid-week peak and sprint boost
+          const midWeekBoost = (r === 2 || r === 3 || r === 4) ? 1 : 0;
+          const base = 2 + midWeekBoost;
+          let level = Math.round(base + waveCycle * 1.4);
+          const jitter = ((c * 19 + r * 37) % 7) - 3;
+          level = Math.max(1, Math.min(4, level + (jitter > 1 ? 1 : jitter < -1 ? -1 : 0)));
+          if ((c * 13 + r * 7) % 19 === 0) level = 0; // occasional rest day
+          if (level > 0) setCellArt(r, c, level);
+        }
+      }
+    }
+    renderArtGrid();
+    saveArtState();
+    toast('Applied Pro Dev Wave: realistic organic developer activity heatmap!', 'success');
+    return;
+  }
+
   let pattern = null;
-  if (presetName === 'heart') {
+
+  if (presetName === 'octocat') {
+    // Iconic GitHub Octocat mascot with ears, face, tentacles
     pattern = [
-      [0, 1, 1, 0, 1, 1, 0],
-      [1, 2, 2, 1, 2, 2, 1],
-      [1, 3, 3, 3, 3, 3, 1],
-      [1, 3, 3, 3, 3, 3, 1],
-      [0, 1, 3, 3, 3, 1, 0],
-      [0, 0, 1, 3, 1, 0, 0],
-      [0, 0, 0, 1, 0, 0, 0]
+      [0, 3, 2, 0, 0, 0, 0, 0, 2, 3, 0],
+      [3, 4, 3, 2, 2, 2, 2, 2, 3, 4, 3],
+      [3, 4, 4, 1, 4, 3, 4, 1, 4, 4, 3],
+      [2, 3, 4, 4, 3, 4, 3, 4, 4, 3, 2],
+      [0, 2, 3, 4, 4, 4, 4, 4, 3, 2, 0],
+      [0, 0, 3, 2, 4, 2, 4, 2, 3, 0, 0],
+      [0, 0, 2, 0, 3, 0, 3, 0, 2, 0, 0]
     ];
-  } else if (presetName === 'smile') {
+  } else if (presetName === 'invader') {
+    // Retro 8-bit space invader
     pattern = [
-      [0, 0, 0, 0, 0, 0, 0],
-      [0, 3, 0, 0, 0, 3, 0],
-      [0, 3, 0, 0, 0, 3, 0],
-      [0, 0, 0, 0, 0, 0, 0],
-      [1, 0, 0, 0, 0, 0, 1],
-      [0, 2, 3, 3, 3, 2, 0],
-      [0, 0, 0, 0, 0, 0, 0]
+      [0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0],
+      [0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0],
+      [0, 0, 2, 3, 3, 3, 3, 3, 2, 0, 0],
+      [0, 3, 4, 1, 4, 3, 4, 1, 4, 3, 0],
+      [3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3],
+      [3, 0, 3, 0, 0, 0, 0, 0, 3, 0, 3],
+      [0, 3, 0, 2, 2, 0, 2, 2, 0, 3, 0]
+    ];
+  } else if (presetName === 'heart') {
+    // 3D shaded heart with curved lobes and light highlight
+    pattern = [
+      [0, 2, 3, 2, 0, 2, 3, 2, 0],
+      [2, 4, 4, 3, 2, 3, 4, 3, 2],
+      [3, 4, 4, 4, 3, 4, 4, 4, 3],
+      [2, 3, 4, 4, 4, 4, 4, 3, 2],
+      [0, 2, 3, 4, 4, 4, 3, 2, 0],
+      [0, 0, 2, 3, 4, 3, 2, 0, 0],
+      [0, 0, 0, 1, 3, 1, 0, 0, 0]
     ];
   } else if (presetName === 'star') {
+    // 5-point shaded star with glowing core
+    pattern = [
+      [0, 0, 0, 0, 4, 0, 0, 0, 0],
+      [0, 0, 0, 2, 4, 2, 0, 0, 0],
+      [3, 4, 4, 4, 4, 4, 4, 4, 3],
+      [0, 2, 3, 4, 4, 4, 3, 2, 0],
+      [0, 0, 3, 4, 3, 4, 3, 0, 0],
+      [0, 2, 4, 2, 0, 2, 4, 2, 0],
+      [0, 3, 1, 0, 0, 0, 1, 3, 0]
+    ];
+  } else if (presetName === 'smile') {
+    // Realistic emoji face with curved eyes, rosy cheeks, open smile
+    pattern = [
+      [0, 0, 2, 2, 0, 2, 2, 0, 0],
+      [0, 2, 4, 4, 0, 4, 4, 2, 0],
+      [0, 0, 1, 2, 0, 2, 1, 0, 0],
+      [0, 3, 0, 0, 0, 0, 0, 3, 0],
+      [2, 0, 4, 0, 0, 0, 4, 0, 2],
+      [0, 3, 4, 4, 4, 4, 4, 3, 0],
+      [0, 0, 2, 3, 3, 3, 2, 0, 0]
+    ];
+  } else if (presetName === 'trophy') {
+    // Developer champion trophy with cup, handles, stem, and pedestal
+    pattern = [
+      [3, 4, 4, 4, 4, 4, 4, 4, 3],
+      [4, 1, 3, 4, 4, 4, 3, 1, 4],
+      [4, 1, 2, 4, 4, 4, 2, 1, 4],
+      [0, 3, 1, 3, 4, 3, 1, 3, 0],
+      [0, 0, 0, 2, 4, 2, 0, 0, 0],
+      [0, 0, 2, 3, 4, 3, 2, 0, 0],
+      [0, 2, 4, 4, 4, 4, 4, 2, 0]
+    ];
+  } else if (presetName === 'bolt') {
+    // High-voltage lightning bolt
+    pattern = [
+      [0, 0, 0, 2, 4, 4, 3],
+      [0, 0, 2, 4, 4, 3, 0],
+      [0, 2, 4, 4, 3, 0, 0],
+      [2, 4, 4, 4, 4, 4, 2],
+      [0, 0, 2, 4, 4, 3, 0],
+      [0, 0, 0, 2, 4, 2, 0],
+      [0, 0, 0, 0, 4, 0, 0]
+    ];
+  } else if (presetName === 'flame') {
+    // Rising flame with fire core
     pattern = [
       [0, 0, 0, 3, 0, 0, 0],
-      [0, 0, 2, 3, 2, 0, 0],
-      [2, 3, 3, 3, 3, 3, 2],
-      [0, 2, 3, 3, 3, 2, 0],
-      [0, 0, 3, 0, 3, 0, 0],
-      [0, 2, 0, 0, 0, 2, 0],
-      [0, 0, 0, 0, 0, 0, 0]
+      [0, 0, 2, 4, 1, 2, 0],
+      [0, 2, 4, 4, 3, 4, 0],
+      [2, 3, 4, 4, 4, 3, 2],
+      [3, 4, 4, 4, 4, 4, 3],
+      [2, 4, 4, 4, 4, 4, 2],
+      [0, 2, 3, 3, 3, 2, 0]
     ];
-  } else if (presetName === 'hi') {
+  } else if (presetName === 'git') {
+    // GIT block lettering
     pattern = [
-      [2, 0, 2, 0, 2],
-      [2, 0, 2, 0, 0],
-      [2, 2, 2, 0, 2],
-      [2, 0, 2, 0, 2],
-      [2, 0, 2, 0, 2],
-      [2, 0, 2, 0, 2],
-      [0, 0, 0, 0, 0]
+      [2, 3, 3, 3, 0, 3, 3, 3, 0, 3, 3, 3, 3, 3, 0],
+      [3, 1, 0, 0, 0, 0, 3, 0, 0, 0, 0, 3, 0, 0, 0],
+      [3, 0, 3, 3, 0, 0, 3, 0, 0, 0, 0, 3, 0, 0, 0],
+      [3, 0, 0, 3, 0, 0, 3, 0, 0, 0, 0, 3, 0, 0, 0],
+      [3, 0, 0, 3, 0, 0, 3, 0, 0, 0, 0, 3, 0, 0, 0],
+      [2, 3, 3, 3, 0, 3, 3, 3, 0, 0, 0, 3, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     ];
   } else if (presetName === 'wave') {
+    clearArtGrid(false);
     for (let c = 0; c < cols; c++) {
       const r = Math.max(0, Math.min(6, Math.round(3 + 2.5 * Math.sin((c / cols) * Math.PI * 3))));
       setCellArt(r, c, 3);
@@ -1287,6 +1558,7 @@ function applyArtPreset(presetName) {
     toast('Applied wave pattern.', 'success');
     return;
   } else if (presetName === 'checker') {
+    clearArtGrid(false);
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < cols; c++) {
         setCellArt(r, c, (r + c) % 2 === 0 ? brushVal : 0);
@@ -1296,25 +1568,39 @@ function applyArtPreset(presetName) {
     saveArtState();
     toast('Applied checkerboard pattern.', 'success');
     return;
+  } else if (presetName === 'hi') {
+    pattern = [
+      [2, 0, 2, 0, 2],
+      [2, 0, 2, 0, 0],
+      [2, 2, 2, 0, 2],
+      [2, 0, 2, 0, 2],
+      [2, 0, 2, 0, 2],
+      [2, 0, 2, 0, 2],
+      [0, 0, 0, 0, 0]
+    ];
   }
 
   if (pattern) {
+    clearArtGrid(false);
+    const patRows = pattern.length;
     const patCols = pattern[0].length;
     const startC = Math.max(0, centerCol - Math.floor(patCols / 2));
-    for (let r = 0; r < 7; r++) {
+    const startR = Math.max(0, Math.floor((7 - patRows) / 2));
+
+    for (let r = 0; r < patRows; r++) {
       for (let pc = 0; pc < patCols; pc++) {
         const c = startC + pc;
-        if (c < cols) {
+        if (c < cols && (startR + r) < 7) {
           const val = pattern[r][pc];
           if (val > 0) {
-            setCellArt(r, c, val);
+            setCellArt(startR + r, c, val);
           }
         }
       }
     }
     renderArtGrid();
     saveArtState();
-    toast(`Applied "${presetName}" preset!`, 'success');
+    toast(`Applied "${presetName}" preset! Use Move / Position buttons to adjust.`, 'success');
   }
 }
 
@@ -1367,16 +1653,18 @@ function restoreArtState() {
   } catch (e) {}
 }
 
-function clearArtGrid() {
+function clearArtGrid(notify = true) {
   const ROWS = 7;
   const cols = state.artCols;
   state.artGrid = Array.from({ length: ROWS }, () => Array(cols).fill(0));
   state.artTargetGrid = Array.from({ length: ROWS }, () => Array(cols).fill(null));
   saveArtState();
-  renderArtGrid();
-  hide(qs('#art-preview-panel'));
-  hide(qs('#art-result-panel'));
-  toast('Art additions cleared. Existing contributions remain visible.', 'info');
+  if (notify) {
+    renderArtGrid();
+    hide(qs('#art-preview-panel'));
+    hide(qs('#art-result-panel'));
+    toast('Art additions cleared. Existing contributions remain visible.', 'info');
+  }
 }
 
 function countToLevel(count) {

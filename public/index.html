@@ -305,6 +305,19 @@
               </select>
             </div>
 
+            <div class="form-group">
+              <label for="art-range-select">Calendar Range</label>
+              <select id="art-range-select" class="select-control">
+                <option value="rolling-52" selected>Rolling 52 Weeks (Full Year)</option>
+                <option value="year-2026">Calendar Year 2026 (Full Year)</option>
+                <option value="year-2025">Calendar Year 2025 (Full Year)</option>
+                <option value="weeks-26">Last 6 Months (26 Weeks)</option>
+                <option value="weeks-16">Last 4 Months (16 Weeks)</option>
+                <option value="weeks-12">Last 3 Months (12 Weeks)</option>
+                <option value="custom">Custom Date &amp; Weeks</option>
+              </select>
+            </div>
+
             <div class="form-row two-col">
               <div class="form-group">
                 <label for="art-start-date">Start Date (Sunday)</label>
@@ -313,18 +326,19 @@
               <div class="form-group">
                 <label for="art-cols">Weeks</label>
                 <div style="display: flex; gap: 4px;">
-                  <input type="number" id="art-cols" class="input-control" min="1" max="52" value="12" />
+                  <input type="number" id="art-cols" class="input-control" min="1" max="53" value="52" />
                   <button type="button" id="btn-art-resize" class="btn btn-ghost btn-sm" title="Apply grid size">Apply</button>
                 </div>
               </div>
             </div>
 
             <div class="quick-chips-row">
-              <span class="chips-label">Quick:</span>
+              <span class="chips-label">Preset:</span>
+              <button type="button" class="chip-btn active" data-weeks="52">52w (Year)</button>
+              <button type="button" class="chip-btn" data-weeks="26">26w (6 Mo)</button>
+              <button type="button" class="chip-btn" data-weeks="16">16w</button>
+              <button type="button" class="chip-btn" data-weeks="12">12w</button>
               <button type="button" class="chip-btn" data-weeks="8">8w</button>
-              <button type="button" class="chip-btn active" data-weeks="12">12w</button>
-              <button type="button" class="chip-btn" data-weeks="24">24w</button>
-              <button type="button" class="chip-btn" data-weeks="52">52w (Year)</button>
             </div>
           </div>
 
@@ -438,16 +452,41 @@
               </div>
             </div>
 
-            <!-- Creative Presets -->
+            <!-- Position & Nudge Controls (Shift Artwork on Canvas) -->
             <div class="toolbar-section">
-              <span class="toolbar-label">Presets</span>
+              <span class="toolbar-label">Move / Position</span>
+              <div class="nudge-controls-wrap">
+                <div class="btn-group" role="group" aria-label="Nudge Artwork">
+                  <button type="button" class="btn btn-xs" id="btn-nudge-far-left" title="Shift artwork 4 weeks left">⏪ 4w</button>
+                  <button type="button" class="btn btn-xs" id="btn-nudge-left" title="Shift artwork 1 week left">◀ 1w</button>
+                  <button type="button" class="btn btn-xs" id="btn-nudge-up" title="Shift artwork 1 day up">▲</button>
+                  <button type="button" class="btn btn-xs" id="btn-nudge-down" title="Shift artwork 1 day down">▼</button>
+                  <button type="button" class="btn btn-xs" id="btn-nudge-right" title="Shift artwork 1 week right">1w ▶</button>
+                  <button type="button" class="btn btn-xs" id="btn-nudge-far-right" title="Shift artwork 4 weeks right">4w ⏩</button>
+                </div>
+                <div class="placement-pills">
+                  <span class="placement-label">Snap:</span>
+                  <button type="button" class="pill-snap" id="btn-place-start" title="Snap artwork to beginning of range">Start</button>
+                  <button type="button" class="pill-snap" id="btn-place-center" title="Snap artwork to center of range">Center</button>
+                  <button type="button" class="pill-snap" id="btn-place-recent" title="Snap artwork to recent weeks">Recent</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Realistic Presets -->
+            <div class="toolbar-section full-width-toolbar">
+              <span class="toolbar-label">Realistic Presets</span>
               <div class="art-presets-group">
-                <button type="button" class="btn-preset" data-preset="heart" title="Draw pixel Heart">❤️ Heart</button>
-                <button type="button" class="btn-preset" data-preset="smile" title="Draw Smile">😊 Smile</button>
-                <button type="button" class="btn-preset" data-preset="star" title="Draw Star">⭐ Star</button>
-                <button type="button" class="btn-preset" data-preset="wave" title="Draw Wave Pattern">〰️ Wave</button>
-                <button type="button" class="btn-preset" data-preset="checker" title="Draw Checkerboard">🏁 Checker</button>
-                <button type="button" class="btn-preset" data-preset="hi" title="Draw HI">👋 HI</button>
+                <button type="button" class="btn-preset highlight-preset" data-preset="devwave" title="Generate authentic realistic developer activity heatmap with weekday focus and sprint clusters">🌊 Pro Dev Wave</button>
+                <button type="button" class="btn-preset" data-preset="octocat" title="Draw iconic GitHub Octocat mascot">🐱 Octocat</button>
+                <button type="button" class="btn-preset" data-preset="invader" title="Draw 8-bit retro Space Invader">👾 Invader</button>
+                <button type="button" class="btn-preset" data-preset="heart" title="Draw 3D shaded pixel heart with highlight">❤️ 3D Heart</button>
+                <button type="button" class="btn-preset" data-preset="star" title="Draw 5-point shaded star with glowing core">⭐ Star</button>
+                <button type="button" class="btn-preset" data-preset="smile" title="Draw realistic round emoji smile">😊 Smile</button>
+                <button type="button" class="btn-preset" data-preset="trophy" title="Draw developer champion trophy">🏆 Trophy</button>
+                <button type="button" class="btn-preset" data-preset="bolt" title="Draw high-voltage lightning bolt">⚡ Bolt</button>
+                <button type="button" class="btn-preset" data-preset="flame" title="Draw rising campfire flame with embers">🔥 Flame</button>
+                <button type="button" class="btn-preset" data-preset="git" title="Draw GIT block lettering">💬 GIT</button>
               </div>
             </div>
 
@@ -464,9 +503,9 @@
                 </button>
                 <div class="zoom-picker">
                   <span class="zoom-label">Size:</span>
-                  <button type="button" class="zoom-btn" data-size="13" title="Compact (13px)">S</button>
-                  <button type="button" class="zoom-btn active" data-size="16" title="Standard (16px)">M</button>
-                  <button type="button" class="zoom-btn" data-size="20" title="Comfortable (20px)">L</button>
+                  <button type="button" class="zoom-btn" data-size="11" title="Compact 52-week view (11px)">S</button>
+                  <button type="button" class="zoom-btn active" data-size="14" title="Standard view (14px)">M</button>
+                  <button type="button" class="zoom-btn" data-size="18" title="Comfortable view (18px)">L</button>
                 </div>
               </div>
             </div>
