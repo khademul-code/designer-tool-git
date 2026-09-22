@@ -16,8 +16,8 @@ const DEFAULT_SETTINGS = {
   defaultCommitMessage: 'Git learning commit',
   defaultBranch: 'main',
   remoteName: 'origin',
-  authorName: 'Git Learner',
-  authorEmail: 'learner@example.com'
+  authorName: 'Khademul Islam',
+  authorEmail: 'khadimulmanaliam@gmail.com'
 };
 
 /**
