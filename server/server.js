@@ -191,7 +191,9 @@ app.post('/api/contributions/random', async (req, res) => {
       endDate,
       minCommits = 1,
       maxCommits = 5,
-      message
+      message,
+      authorName,
+      authorEmail
     } = req.body;
 
     if (!startDate || !endDate) {
@@ -215,6 +217,10 @@ app.post('/api/contributions/random', async (req, res) => {
       return res.status(400).json({ success: false, error: 'maxCommits cannot exceed 20 per day for safety.' });
     }
 
+    const finalAuthorName = (authorName || settings.authorName || 'Khademul Islam').trim();
+    const finalAuthorEmail = (authorEmail || settings.authorEmail || 'khadimulmanaliam@gmail.com').trim();
+    const finalMessage = (message || settings.defaultCommitMessage || 'Git learning commit').trim();
+
     // Build a commit plan: for each date in range, random count
     const commitPlan = [];
     let cursor = new Date(start);
@@ -236,9 +242,9 @@ app.post('/api/contributions/random', async (req, res) => {
         date: `${y}-${m}-${d}`,
         time: '12:00:00',
         count,
-        message: (message || settings.defaultCommitMessage || 'Git learning commit').trim(),
-        authorName: settings.authorName || 'Khademul Islam',
-        authorEmail: settings.authorEmail || 'khadimulmanaliam@gmail.com'
+        message: finalMessage,
+        authorName: finalAuthorName,
+        authorEmail: finalAuthorEmail
       });
 
       cursor.setDate(cursor.getDate() + 1);
@@ -246,6 +252,16 @@ app.post('/api/contributions/random', async (req, res) => {
 
     const result = await gitWriter.createBatchCommits(repoPath, commitPlan);
     const status = await repositoryService.getFullRepositoryStatus();
+
+    // Also record plan in planService
+    planService.createPlan({
+      name: `Random Contributions (${startDate} to ${endDate})`,
+      source: 'random',
+      message: finalMessage,
+      authorName: finalAuthorName,
+      authorEmail: finalAuthorEmail,
+      schedule: commitPlan.map(c => ({ date: c.date, count: c.count }))
+    });
 
     res.json({
       success: true,

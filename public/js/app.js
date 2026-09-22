@@ -185,11 +185,25 @@ function initRepository() {
 async function loadSavedRepo() {
   try {
     const data = await apiFetch('/api/repository/settings');
+    state.settings = data.settings;
     const saved = data.settings?.repositoryPath;
     if (saved) {
       qs('#repo-path-input').value = saved;
       // Auto-validate
       qs('#btn-connect-repo').click();
+    }
+    // Populate dynamic author inputs
+    if (data.settings?.authorName) {
+      const randName = qs('#rand-author-name');
+      if (randName && !randName.value) randName.value = data.settings.authorName;
+      const artName = qs('#art-author-name');
+      if (artName && !artName.value) artName.value = data.settings.authorName;
+    }
+    if (data.settings?.authorEmail) {
+      const randEmail = qs('#rand-author-email');
+      if (randEmail && !randEmail.value) randEmail.value = data.settings.authorEmail;
+      const artEmail = qs('#art-author-email');
+      if (artEmail && !artEmail.value) artEmail.value = data.settings.authorEmail;
     }
   } catch (e) {
     // No saved settings yet — that's fine
@@ -612,6 +626,8 @@ async function handleRandom(pushAfter = false) {
   const minCommits = parseInt(qs('#rand-min').value, 10) || 1;
   const maxCommits = parseInt(qs('#rand-max').value, 10) || 5;
   const message    = qs('#rand-message').value.trim() || 'Git learning commit';
+  const authorName = qs('#rand-author-name')?.value?.trim();
+  const authorEmail = qs('#rand-author-email')?.value?.trim();
 
   if (!startDate || !endDate) { toast('Please select start and end dates.', 'error'); return; }
   if (minCommits < 1 || maxCommits < minCommits) {
@@ -626,7 +642,15 @@ async function handleRandom(pushAfter = false) {
   try {
     const data = await apiFetch('/api/contributions/random', {
       method: 'POST',
-      body: JSON.stringify({ startDate, endDate, minCommits, maxCommits, message })
+      body: JSON.stringify({
+        startDate,
+        endDate,
+        minCommits,
+        maxCommits,
+        message,
+        authorName,
+        authorEmail
+      })
     });
 
     // Optionally push
@@ -832,8 +856,10 @@ async function handleArtPreview() {
 }
 
 async function handleArtApply() {
-  const startDate = qs('#art-start-date').value;
-  const message   = qs('#art-message').value.trim() || 'Git pattern commit';
+  const startDate   = qs('#art-start-date').value;
+  const message     = qs('#art-message').value.trim() || 'Git pattern commit';
+  const authorName  = qs('#art-author-name')?.value?.trim();
+  const authorEmail = qs('#art-author-email')?.value?.trim();
   if (!startDate) { toast('Please select a start date.', 'error'); return; }
 
   setLoading(true, 'Creating art commits…');
@@ -847,6 +873,8 @@ async function handleArtApply() {
         grid: state.artGrid,
         startDate,
         message,
+        authorName,
+        authorEmail,
         name: 'Contribution Art'
       })
     });
